@@ -1,0 +1,11 @@
+import type { FoodItem, InventoryState } from './inventory-types';
+export type FoodBalanceReconciliationIssue = { code: string; message: string; planId?: string };
+export type FoodBalanceReconciliationPreview = { itemId: string; planIds: string[]; recordedQuantity: number | null; unit: string; bookQuantity: number | null;
+  issues: FoodBalanceReconciliationIssue[]; errors: FoodBalanceReconciliationIssue[]; canReconcile: boolean;
+  planDetails: { planId: string; actualQuantity: number; actualEntryIds: string[] }[] };
+export type InventoryReconciliationHistoryEntry = { operationId: string; at: string; sourceText: string; revisionBefore: number; revisionAfter: number;
+  itemBefore: FoodItem; itemAfter: FoodItem; planCreditBeforeAfter: { planId: string; date: string; unit: string; recordedQuantity: number; actualEntryIds: string[]; before: object; after: object }[];
+  fingerprint: string; fingerprintLength: number };
+export function previewFoodBalanceReconciliation(state: unknown, itemId: string, at?: string): FoodBalanceReconciliationPreview;
+export function reconcileFoodInventoryBalance(state: InventoryState, payload: unknown, at: string): { items: FoodItem[]; plans: NonNullable<InventoryState['plans']>; historyEntry: Omit<InventoryReconciliationHistoryEntry, 'fingerprint' | 'fingerprintLength'>; detail: string };
+export function checkFoodBalanceReconciliationHistory(state: unknown): void;

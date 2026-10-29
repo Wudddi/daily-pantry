@@ -1,0 +1,25 @@
+import type { DietPlan, MealSlot, PlannedFood } from './diet-types';
+import type { FoodItem } from './inventory-types';
+import type { PlanNutritionTotal } from './diet-nutrition.mjs';
+export type IntakeDraftInput = { id: string; baseFingerprint: string;
+  consumed: { mealId: string; lineId: string; quantity: number | null; unit?: string; correctExistingActuals?: boolean }[];
+  transfers: { id: string; fromMealId: string; lineId: string; toMealId: string; quantity: number; unit?: string }[];
+  completedMealIds: string[]; updatedAt?: string };
+export type IntakeDraftRow = { lineId: string; itemId: string | null; name: string; unit: string; plannedQuantity: number | null;
+  eatenQuantity: number | null; reportedQuantity: number | null; externalReportedQuantity: number | null;
+  remainingQuantity: number | null; unknown: boolean; canEdit: boolean; issue: string };
+export type IntakeDraftMeal = { id: string; slot: MealSlot; title: string; state: string; completed: boolean; rows: IntakeDraftRow[] };
+export type IntakeDraftDayRow = Pick<IntakeDraftRow, 'itemId' | 'name' | 'unit' | 'plannedQuantity' | 'eatenQuantity' | 'reportedQuantity' | 'remainingQuantity'>;
+export type IntakeDraftView = { planId: string | null; date: string | null; baseFingerprint: string; draftVersion: string | null; draft: IntakeDraftInput | null;
+  hasDraft: boolean; stale: boolean; canSubmit: boolean; hasChanges: boolean; issues: { code: string; message: string; mealId?: string; lineId?: string }[];
+  meals: IntakeDraftMeal[]; dayRows: IntakeDraftDayRow[]; totals: { planned: PlanNutritionTotal[]; eaten: PlanNutritionTotal[]; remaining: PlanNutritionTotal[] } };
+export function intakeEntryId(planId: string, mealId: string, lineId: string): string;
+export function intakeTransferLineId(planId: string, transferId: string): string;
+export function intakeDraftVersion(draft: IntakeDraftInput | null | undefined): string | null;
+export function intakePlanFingerprint(plan: DietPlan, inventoryItems?: readonly FoodItem[]): string;
+export function normalizeIntakeDraft(plan: DietPlan, draft: IntakeDraftInput, inventoryItems?: readonly FoodItem[]): IntakeDraftInput;
+export function prepareIntakeDraft(plan: DietPlan, draft: IntakeDraftInput, inventoryItems?: readonly FoodItem[]): {
+  draft: IntakeDraftInput; plan: DietPlan; changes: { mealId: string; lineId: string; managedEntryId: string;
+    managedQuantity: number | null; sourceLine: PlannedFood; externalCorrections: { entryId: string; quantity: number }[] }[];
+  meals: IntakeDraftMeal[]; dayRows: IntakeDraftDayRow[]; totals: IntakeDraftView['totals'] };
+export function intakeDraftView(plan: DietPlan, inventoryItems?: readonly FoodItem[], draftOverride?: IntakeDraftInput | null): IntakeDraftView;

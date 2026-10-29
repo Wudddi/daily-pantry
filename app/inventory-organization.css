@@ -1,0 +1,69 @@
+.inventory-scope-tabs{display:flex;align-items:stretch;gap:9px;margin-bottom:12px;padding:6px;background:#eef2e9;border:1px solid #e0e7d9;border-radius:12px}
+.inventory-scope-tabs>button{display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;flex:1;border-radius:8px;padding:10px 15px;color:#66765d;font-size:14px;white-space:nowrap}
+.inventory-scope-tabs>button.selected{background:#fffefa;color:#31543f;box-shadow:0 1px 5px #2b4a3510;font-weight:600}
+.inventory-scope-tabs>button small{padding:2px 6px;border-radius:5px;background:#e4ebdd;color:#617355;font-size:11px}
+.inventory-scope-tabs>button.selected small{background:#eaf1e4;color:#41633d}
+.inventory-scope-description{font-size:12px;line-height:1.9;color:#7a8870;margin:0 2px 22px}
+.inventory-workspace .inventory-toolbar{gap:18px;padding-top:8px;min-height:76px}
+.inventory-workspace .inventory-tab{font-size:13px;min-height:48px}
+.inventory-workspace .inventory-tab>span{font-size:10px}
+.inventory-workspace .search-field{min-height:40px}
+.inventory-workspace .search-field input{font-size:13px}
+.inventory-workspace .category-pills{padding-top:15px;padding-bottom:15px}
+.inventory-workspace .category-pill{font-size:12px;min-height:36px;padding:6px 11px}
+.inventory-workspace .table-head{font-size:11px}
+.inventory-workspace .table-head small{font-size:10px}
+.inventory-group-heading{display:flex;align-items:center;gap:10px;padding:16px 23px;background:#f3f6ee;border-top:1px solid #e8eddf;border-bottom:1px solid #e7eddd}
+.inventory-group-heading h2{color:#4e6744;font-size:13px;font-weight:600;letter-spacing:.4px}
+.inventory-group-heading>span{font-size:10px;color:#89977d}
+.inventory-workspace .food-row{padding-top:21px;padding-bottom:21px;min-width:0}
+.inventory-workspace .food-name{font-size:13px;line-height:1.8;color:#425d3c}
+.inventory-workspace .food-meta{font-size:10px;color:#7a8b6b;line-height:1.8}
+.inventory-workspace .food-notes{font-size:10px;color:#99a58f;line-height:1.8;max-width:310px;-webkit-line-clamp:1}
+.inventory-workspace .quantity-cell strong{font-size:17px;color:#5c754d}
+.inventory-workspace .quantity-cell>span{font-size:10px;line-height:1.8;color:#8c9a7f}
+.inventory-workspace .nutrition-basis{font-size:10px;line-height:1.7}
+.inventory-workspace .macro-values>strong{font-size:14px}
+.inventory-workspace .macro-values>span{font-size:11px}
+.inventory-workspace .macro-values small{font-size:9px}
+.inventory-workspace .source-label{font-size:9px}
+.inventory-workspace .incomplete-note,.portion-pending-note{font-size:10px;line-height:1.8;color:#a38a61}
+.inventory-workspace .portion-pending-note{display:block;color:#8b957e}
+.inventory-workspace .supplement-heading,.inventory-workspace .supplement-preview{display:none}
+.inventory-workspace .supplement-basis{font-size:11px}
+.inventory-workspace .supplement-details>summary{min-height:36px;font-size:12px}
+.inventory-workspace .supplement-details dd{font-size:13px}
+.inventory-workspace .consume-button,.inventory-workspace .restock-button{min-height:40px;font-size:10px;padding:8px 7px}
+.restock-button{border:1px solid #dbe7d1;border-radius:6px;background:#f4f8ed;color:#587746;font-size:11px;white-space:nowrap}
+.inventory-workspace .action-menu>summary{min-height:40px;min-width:24px}
+.inventory-workspace .action-dropdown{min-width:160px}
+.inventory-workspace .action-dropdown button{min-height:42px;font-size:12px}
+.inventory-workspace .is-depleted{opacity:1;background:#fcfcf8}
+.inventory-workspace .is-depleted .food-name{color:#7f8d75}
+.restock-modal-body{display:flex;flex-direction:column;gap:22px}
+.restock-product{display:flex;align-items:center;gap:13px;background:#f4f7ee;border:1px solid #e0e8d6;padding:16px;border-radius:8px;color:#5e7c4b}
+.restock-product strong{font-size:15px;line-height:1.8;color:#44663a}
+.restock-product p{font-size:12px;line-height:1.8;color:#859875;margin-top:5px}
+.restock-modal-body .field{font-size:13px}
+.restock-modal-body .field input{font-size:16px;min-height:46px}
+.restock-modal-body .field small{font-size:11px;color:#9aa88c}
+.restock-unknown strong{font-size:13px}
+.restock-unknown small{font-size:11px;line-height:1.8}
+.preserved-stock-status{display:block;font-size:12px;line-height:1.9;color:#8c987f;background:#f5f7ef;border:1px solid #e7eddf;border-radius:6px;padding:11px}
+.existing-product-notice{padding:16px;background:#f2f7eb;border:1px solid #dbe7ce;border-radius:8px;margin-bottom:22px;color:#5f7e4a}
+.existing-product-notice>strong{font-size:14px;line-height:1.8}
+.existing-product-notice>p{font-size:12px;line-height:1.8;margin-top:5px;color:#8c9f7b}
+.existing-product-notice>div{display:flex;align-items:center;justify-content:space-between;gap:13px;padding-top:13px;margin-top:12px;border-top:1px solid #e1e9d6}
+.existing-product-notice>div>span{font-size:12px;line-height:1.8}
+.existing-product-notice small{display:block;font-size:10px;color:#9aaa8a}
+.catalog-reuse-search{margin-bottom:22px;border:1px solid #e2e9d9;border-radius:7px;padding:13px 15px;background:#f8faf3}
+.catalog-reuse-search>summary{cursor:pointer;font-size:13px;line-height:1.8;color:#6c8758;min-height:30px;align-content:center}
+.catalog-reuse-search>.field{margin-top:13px;font-size:12px}
+.catalog-reuse-search input{font-size:16px;min-height:44px}
+.catalog-reuse-results>div{display:flex;align-items:center;justify-content:space-between;gap:13px;border-top:1px solid #e2e9d8;padding-top:12px;margin-top:12px}
+.catalog-reuse-results>div>span{font-size:12px;line-height:1.8;color:#5f7b4d}
+.catalog-reuse-results small{display:block;font-size:10px;color:#98aa86}
+.catalog-reuse-results>p{font-size:12px;line-height:1.9;color:#97a58a;margin-top:13px}
+@media(max-width:1260px){.inventory-workspace .inventory-toolbar{padding-top:14px}.inventory-workspace .inventory-tabs{gap:22px}.inventory-workspace .search-field{min-width:0}.inventory-workspace .food-notes{max-width:230px}}
+@media(max-width:900px){.inventory-scope-tabs{gap:4px}.inventory-scope-tabs>button{font-size:12px;padding:9px 10px;gap:6px}.inventory-scope-tabs>button svg{width:16px}.inventory-workspace .food-row{row-gap:13px}.inventory-group-heading{padding:14px 18px}.inventory-workspace .food-name{font-size:13px}.inventory-workspace .nutrition-cell{margin-left:48px}.inventory-workspace .supplement-cell{gap:3px}.inventory-workspace .food-actions{align-self:center}.inventory-workspace .quantity-cell strong{font-size:15px}.inventory-workspace .macro-values{gap:15px}}
+@media(max-width:680px){.inventory-scope-tabs{display:grid;grid-template-columns:1fr 1fr;padding:5px;gap:5px;border-radius:10px}.inventory-scope-tabs>button{font-size:13px;min-height:45px;padding:10px;justify-content:flex-start;gap:8px}.inventory-scope-tabs>button small{margin-left:auto;font-size:10px}.inventory-scope-description{font-size:11px;line-height:1.9;margin-bottom:18px}.inventory-workspace .inventory-tab{font-size:12px;min-height:48px}.inventory-workspace .inventory-tabs{gap:19px}.inventory-workspace .category-pill{font-size:11px;min-height:35px}.inventory-workspace .search-field input{font-size:16px}.inventory-workspace .search-field{min-height:42px}.inventory-workspace .food-row{grid-template-columns:minmax(0,1fr) 84px;gap:10px 12px;padding:18px 15px}.inventory-workspace .food-identity{grid-column:1/2;grid-row:1;align-self:start;min-width:0}.inventory-workspace .food-name{font-size:13px;line-height:1.8}.inventory-workspace .food-meta{font-size:10px}.inventory-workspace .food-notes{font-size:10px;max-width:210px}.inventory-workspace .quantity-cell{grid-column:2/3;grid-row:1;align-self:start;min-width:0}.inventory-workspace .quantity-cell strong{font-size:15px}.inventory-workspace .quantity-cell strong small{font-size:10px}.inventory-workspace .quantity-cell>span{font-size:9px;line-height:1.8}.inventory-workspace .nutrition-cell{grid-column:1/-1;grid-row:2;margin-left:0;padding-left:47px;gap:7px}.inventory-workspace .food-actions{grid-column:1/-1;grid-row:3;justify-content:flex-end;gap:8px;margin-top:1px}.inventory-workspace .consume-button,.inventory-workspace .restock-button{min-height:40px;padding:8px 12px;font-size:11px}.inventory-workspace .action-menu>summary{width:36px;min-height:40px}.inventory-workspace .nutrition-basis{font-size:10px}.inventory-workspace .macro-values{gap:14px;flex-wrap:wrap;line-height:1.8}.inventory-workspace .macro-values>strong{font-size:14px}.inventory-workspace .macro-values>span{font-size:12px}.inventory-workspace .macro-values small{font-size:9px}.inventory-workspace .incomplete-note,.inventory-workspace .portion-pending-note{font-size:10px}.inventory-workspace .supplement-cell{padding-left:47px}.inventory-workspace .supplement-basis{font-size:11px}.inventory-workspace .supplement-details>summary{font-size:12px}.inventory-group-heading{padding:13px 15px}.inventory-group-heading h2{font-size:12px}.inventory-workspace .summary-info>span{font-size:9px}.inventory-workspace .summary-description{font-size:8px}.inventory-workspace .summary-info strong{font-size:24px}.existing-product-notice>div{flex-wrap:wrap}.existing-product-notice .button{margin-left:auto;min-height:40px}.restock-modal-body .field input{font-size:16px}}

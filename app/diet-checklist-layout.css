@@ -1,0 +1,59 @@
+.diet-checklist-home .page-heading{margin-bottom:14px;align-items:center}
+.diet-checklist-home .page-heading .eyebrow,.diet-checklist-home .page-heading p{display:none}
+.diet-checklist-home .page-heading h1{font-size:27px;line-height:1.3;margin:0}
+.diet-checklist-home .page-heading>.button{min-height:40px;font-size:12px;padding:9px 13px}
+.diet-checklist-home .diet-day-bar{padding:8px 13px;margin-bottom:10px}
+.diet-checklist-home .diet-date-picker{gap:9px;justify-content:flex-start}
+.diet-checklist-home .diet-date-picker label{flex-direction:row;align-items:center;gap:9px}
+.diet-checklist-home .diet-date-picker input{font-size:15px}
+.diet-checklist-home .diet-view-tabs{margin:0 0 12px;gap:7px}
+.diet-checklist-home .diet-view-tabs>button{padding:8px 13px;min-height:40px;font-size:12px}
+.diet-checklist-home .diet-daily-summary{margin:0 0 12px}
+.diet-checklist-home .diet-summary-heading,.diet-checklist-home .diet-summary-note{display:none}
+.diet-checklist-home .diet-nutrition-grid{grid-template-columns:1.3fr repeat(3,minmax(0,1fr));gap:8px;margin:0}
+.diet-checklist-home .diet-nutrition-grid>div{padding:12px 14px;min-width:0;background:#fffefa}
+.diet-checklist-home .diet-nutrition-grid span{font-size:11px;color:#78876d}
+.diet-checklist-home .diet-nutrition-grid strong{display:flex;align-items:baseline;gap:3px;flex-wrap:wrap;font-size:23px;line-height:1.35;margin:5px 0 0;overflow-wrap:anywhere}
+.diet-checklist-home .diet-nutrition-grid strong small{font-size:11px}
+.diet-checklist-home .diet-nutrition-grid p{display:none}
+.diet-checklist-home .diet-summary-details{margin-top:8px}
+.diet-reference-details{margin:12px 0;padding:0 16px;color:#74846b}
+.diet-reference-details>summary{padding:12px 0;min-height:44px;cursor:pointer;font-size:12px;line-height:1.7}
+.diet-reference-details .meal-overview-heading>p{display:none}
+.diet-reference-details .daily-food-overview{margin:0 0 16px}
+.diet-checklist-home .diet-notes{margin-top:12px;padding:13px 16px}
+.diet-checklist-home .diet-footnote{padding:12px 2px;font-size:10px}
+.diet-page [role=tabpanel][hidden]{display:none}
+.diet-menu-overview{padding:20px;margin:0 0 12px}
+.diet-menu-overview>.diet-light-note{font-size:12px;line-height:1.8;margin-top:8px;color:#87957c}
+.diet-menu-overview .meal-overview{margin:18px 0 0}
+.diet-menu-overview .meal-overview-heading>p{display:none}
+@media(max-width:600px){
+ .app-shell:has(.diet-checklist-home) .sidebar{padding:8px 12px}
+ .app-shell:has(.diet-checklist-home) .sidebar .brand{display:none}
+ .app-shell:has(.diet-checklist-home) .main-nav{margin-top:0}
+ .app-shell:has(.diet-checklist-home) .topbar{display:none}
+ .app-shell:has(.diet-checklist-home) .main-content{padding-top:12px}
+ .diet-checklist-home .page-heading{margin-bottom:12px}
+ .diet-checklist-home .page-heading h1{font-size:23px}
+ .diet-checklist-home .page-heading>.button{padding:8px 10px;font-size:11px}
+ .diet-checklist-home .diet-day-bar{padding:7px 8px}
+ .diet-checklist-home .diet-date-picker{gap:5px;justify-content:space-between}
+ .diet-checklist-home .diet-date-picker label{font-size:10px;gap:5px}
+ .diet-checklist-home .diet-date-picker input{font-size:14px;width:128px;max-width:128px}
+ .diet-checklist-home .diet-date-picker>button{padding:7px}
+ .diet-checklist-home .diet-view-tabs{gap:6px;margin-bottom:10px}
+ .diet-checklist-home .diet-view-tabs>button{padding:8px 10px;font-size:11px;gap:6px}
+ .diet-checklist-home .diet-view-tabs>.diet-calendar-toggle{padding:8px 3px}
+ .diet-checklist-home .diet-nutrition-grid{gap:6px;grid-template-columns:1.3fr repeat(3,minmax(0,1fr))}
+ .diet-checklist-home .diet-nutrition-grid>div{padding:9px 6px;border-radius:9px}
+ .diet-checklist-home .diet-nutrition-grid span{font-size:10px}
+ .diet-checklist-home .diet-nutrition-grid strong{font-size:15px;gap:1px;margin-top:5px;line-height:1.4;white-space:nowrap;flex-wrap:nowrap}
+ .diet-checklist-home .diet-nutrition-grid>div:first-child strong{font-size:18px}
+ .diet-checklist-home .diet-nutrition-grid strong small{font-size:9px}
+ .diet-reference-details{padding:0 12px;margin:10px 0}
+ .diet-checklist-home .diet-view-tabs>button{padding:8px;font-size:11px;gap:4px}
+ .diet-checklist-home .diet-view-tabs>button>svg{width:14px;height:14px}
+ .diet-menu-overview{padding:14px 12px}
+ .diet-menu-overview .meal-overview{margin-top:15px}
+}

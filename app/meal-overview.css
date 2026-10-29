@@ -1,0 +1,42 @@
+.meal-overview{margin:22px 0;min-width:0}
+.meal-overview-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 14px}
+.meal-overview-heading h2{font-size:19px;color:#40573a;font-weight:550}
+.meal-overview-heading p{font-size:12px;color:#839178;line-height:1.8}
+.meal-overview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.meal-overview-card{padding:20px;min-width:0;overflow-wrap:anywhere}
+.meal-overview-card.is-selected{border-color:#8eac7b;box-shadow:0 0 0 1px #8eac7b}
+.meal-overview-card-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.meal-overview-card-heading>strong{font-size:15px;font-weight:550;color:#4c683f}
+.meal-overview-card-heading .diet-badge{font-size:10px;padding:4px 7px}
+.meal-overview-time{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.7;color:#88967d;margin:9px 0}
+.meal-overview-card h3{font-size:15px;line-height:1.8;font-weight:500;color:#4c6041;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:81px}
+.meal-overview-foods{font-size:12px;color:#7d8b71;margin-bottom:13px}
+.meal-overview-foods>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:44px;cursor:pointer;list-style:none}
+.meal-overview-foods>summary::-webkit-details-marker{display:none}
+.meal-overview-foods[open]>summary>svg{transform:rotate(180deg)}
+.meal-overview-foods ul{list-style:none;padding:0;margin:4px 0 0}
+.meal-overview-foods li{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid #edf0e7;font-size:12px;line-height:1.8}
+.meal-overview-foods li>span{min-width:0;overflow-wrap:anywhere}
+.meal-overview-foods li>strong{font-size:12px;font-weight:500;flex-shrink:0;max-width:42%;text-align:right;color:#617953}
+.meal-overview-foods li.is-uneaten{color:#919986}
+.meal-overview-metrics{border-top:1px solid #e7ecdf;padding:13px 0 0;margin:0;font-variant-numeric:tabular-nums}
+.overview-metric dt{font-size:11px;color:#8a967f;line-height:1.7;margin:0}
+.overview-metric dd{font-size:15px;color:#50683f;font-weight:550;line-height:1.7;margin:2px 0 0;overflow-wrap:anywhere}
+.overview-metric dd small{font-size:10px;color:#8c987f;font-weight:400;white-space:nowrap}
+.overview-metric>span{display:block;font-size:10px;line-height:1.6;color:#9b8b6c}
+.overview-energy{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin-bottom:10px}
+.overview-energy dd{font-size:23px;color:#3e6437;line-height:1.4;margin:0}
+.overview-energy>span{flex-basis:100%}
+.meal-overview-macros{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.meal-overview-open{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;width:100%;border-top:1px solid #e7ecdf;margin-top:14px;padding:10px 0 0;color:#6d8857;font-size:12px}
+.meal-overview-open:hover{color:#335e38}
+.meal-overview-detail{margin-top:20px;scroll-margin-top:10px;min-width:0}
+.meal-overview-detail[hidden]{display:none}
+.meal-detail-navigation{position:sticky;top:8px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px;margin-bottom:12px;border:1px solid #dde6d4;background:#f4f7ef;border-radius:10px;box-shadow:0 3px 9px #35513308}
+.meal-detail-navigation>div{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.meal-detail-navigation button{min-height:44px;font-size:13px;padding:9px 16px;border-radius:7px;color:#748868}
+.meal-detail-navigation button[aria-pressed=true]{background:#436b48;color:white}
+.meal-detail-navigation .meal-detail-close{display:flex;align-items:center;gap:5px;font-size:12px;padding:9px;flex-shrink:0}
+@media(max-width:1000px){.meal-overview-grid{grid-template-columns:1fr;gap:12px}.meal-overview-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,.55fr);column-gap:22px;padding:18px 20px}.meal-overview-card-heading,.meal-overview-time,.meal-overview-card h3,.meal-overview-foods{grid-column:1}.meal-overview-card h3{min-height:0;-webkit-line-clamp:2;margin-bottom:6px}.meal-overview-time{margin:5px 0}.meal-overview-foods{margin-bottom:0}.meal-overview-metrics{grid-column:2;grid-row:1/5;align-self:center;border-top:0;padding:0}.meal-overview-macros{gap:8px}.meal-overview-open{grid-column:1/-1;margin-top:12px;padding-top:10px}.meal-overview-card-heading>strong{font-size:14px}}
+@media(max-width:600px){.meal-overview-heading{align-items:flex-start;flex-direction:column;gap:4px;margin-bottom:12px}.meal-overview-heading h2{font-size:18px}.meal-overview-heading p{font-size:11px}.meal-overview-card{display:block;padding:16px}.meal-overview-card h3{font-size:14px;line-height:1.8;margin:8px 0;min-height:0;-webkit-line-clamp:2}.meal-overview-card-heading>strong{font-size:14px}.meal-overview-time{font-size:11px;margin:6px 0}.meal-overview-foods{margin:3px 0 8px}.meal-overview-foods>summary{min-height:44px}.meal-overview-metrics{display:flex;align-items:center;gap:14px;border-top:1px solid #e7ecdf;padding-top:10px}.overview-energy{display:block;flex:0 0 94px;margin:0}.overview-energy dd{font-size:21px}.overview-metric dt{font-size:10px}.overview-metric dd{font-size:13px}.overview-energy dd{font-size:21px}.overview-metric dd small{font-size:9px}.meal-overview-macros{flex:1;gap:7px}.meal-overview-open{margin-top:10px;padding-top:9px;min-height:44px}.meal-detail-navigation{gap:4px;padding:5px;top:5px}.meal-detail-navigation>div{gap:3px}.meal-detail-navigation button{font-size:12px;padding:9px 11px}.meal-detail-navigation .meal-detail-close{font-size:11px;padding:9px 6px}.meal-overview-foods li{font-size:12px}.meal-overview-foods li>strong{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.meal-overview *{scroll-behavior:auto}}

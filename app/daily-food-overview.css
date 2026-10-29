@@ -1,0 +1,58 @@
+.daily-food-overview{container-type:inline-size;min-width:0;max-width:100%;margin:24px 0;padding:22px;color:#40563a;scroll-margin-top:20px;font-variant-numeric:tabular-nums}
+.diet-summary-shortcut{margin-bottom:18px}
+.daily-food-overview:focus{outline:none}
+.daily-food-overview:focus-visible{outline:2px solid #8fab7b;outline-offset:4px}
+.daily-food-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:19px}
+.daily-food-eyebrow{font-size:11px;line-height:1.7;color:#869677;letter-spacing:.05em}
+.daily-food-heading h2{font-size:20px;line-height:1.5;font-weight:550;color:#3f5b36;margin:3px 0 6px}
+.daily-food-heading p{font-size:12px;line-height:1.8;color:#7a8a6e;margin:0}
+.daily-food-count{flex-shrink:0;border:1px solid #e2e9d9;border-radius:6px;background:#f6f8f0;color:#708461;font-size:11px;padding:6px 9px;margin-top:3px}
+.daily-rollup-table-heading{display:none}
+.daily-rollup-list{list-style:none;margin:0;padding:0}
+.daily-rollup-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:13px 14px;min-width:0;padding:17px 0;border-top:1px solid #e8eddf;align-items:start}
+.daily-rollup-identity{min-width:0}
+.daily-rollup-identity h3{font-size:14px;line-height:1.8;font-weight:550;overflow-wrap:anywhere;margin:0;color:#40583a}
+.daily-rollup-allocations{list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;margin:7px 0 0;padding:0}
+.daily-rollup-allocations li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px;font-size:11px;line-height:1.8;min-width:0;color:#87967c;overflow-wrap:anywhere}
+.daily-rollup-allocations strong{font-weight:450;color:#6d825d}
+.daily-rollup-allocations em{font-style:normal;font-size:10px;color:#789965}
+.daily-rollup-basis-note{margin:5px 0 0;font-size:11px;line-height:1.8;color:#928369;overflow-wrap:anywhere}
+.daily-rollup-quantity{text-align:right;min-width:0;max-width:130px;padding-top:2px;overflow-wrap:anywhere}
+.daily-rollup-mobile-label{display:block;font-size:10px;line-height:1.7;color:#8d9b83;margin-bottom:3px}
+.daily-rollup-quantity>strong{display:block;font-size:16px;line-height:1.7;font-weight:550;color:#577547}
+.daily-rollup-quantity small{font-size:11px;font-weight:400;color:#809274}
+.daily-rollup-quantity .daily-rollup-uneaten{color:#8e9886}
+.daily-rollup-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;min-width:0;margin:0;padding:0}
+.daily-rollup-row>.daily-rollup-metrics{grid-column:1/-1;background:#f8faf4;border-radius:7px;padding:10px 12px}
+.daily-rollup-metric{min-width:0}
+.daily-rollup-metric dt{font-size:10px;line-height:1.6;font-weight:400;color:#8b9981;margin-bottom:3px}
+.daily-rollup-metric dd{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 3px;min-width:0;margin:0;font-size:14px;line-height:1.7;font-weight:500;color:#587248;overflow-wrap:anywhere}
+.daily-rollup-metric dd>small{font-size:10px;font-weight:400;color:#92a085}
+.daily-rollup-metric.is-incomplete dd{font-size:12px;color:#95815e}
+.daily-rollup-known{display:block;flex-basis:100%;line-height:1.7;color:#968b73!important;font-size:10px!important;font-weight:400}
+.daily-rollup-row.is-uneaten .daily-rollup-identity h3{color:#89957e}
+.daily-rollup-totals{border-top:1px solid #dce6d1;margin-top:4px;padding-top:8px}
+.daily-rollup-total{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:11px 0;min-width:0}
+.daily-rollup-total>strong{font-size:12px;line-height:1.8;font-weight:500;color:#788c69}
+.daily-rollup-total .daily-rollup-metric dd{font-size:14px}
+.daily-rollup-total.is-grand-total{border-radius:8px;background:#edf3e5;padding:13px 12px;margin-top:5px}
+.daily-rollup-total.is-grand-total>strong{font-size:13px;color:#46673b;font-weight:550}
+.daily-rollup-total.is-grand-total .daily-rollup-metric dd{font-size:17px;color:#416535;font-weight:600}
+.daily-food-note{font-size:11px;line-height:1.9;color:#87967b;margin:13px 0 0;overflow-wrap:anywhere}
+.daily-food-empty{font-size:13px;line-height:1.9;color:#8b9981;padding:18px 0;margin:0}
+.daily-food-issues{font-size:12px;line-height:1.9;color:#7c8d6e;margin-top:4px}
+.daily-food-issues>summary{cursor:pointer;min-height:44px;display:flex;align-items:center}
+.daily-food-issues p{margin:4px 0;color:#918368;overflow-wrap:anywhere}
+@container(min-width:740px){
+ .daily-rollup-table-heading,.daily-rollup-row{display:grid;grid-template-columns:minmax(190px,1.2fr) minmax(80px,.35fr) minmax(300px,1.3fr);gap:22px;align-items:center}
+ .daily-rollup-table-heading{font-size:11px;line-height:1.8;color:#86967a;padding:0 0 11px}
+ .daily-rollup-table-heading>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+ .daily-rollup-table-heading small{font-size:10px;margin-left:3px;color:#a0ab97}
+ .daily-rollup-row>.daily-rollup-metrics{grid-column:auto;padding:0;background:none}
+ .daily-rollup-row .daily-rollup-metric dt{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+ .daily-rollup-mobile-label{display:none}
+ .daily-rollup-quantity{text-align:left;max-width:none;padding:0}
+ .daily-rollup-total{grid-template-columns:minmax(0,1.55fr) minmax(300px,1.3fr);gap:22px;align-items:center}
+ .daily-rollup-total.is-grand-total{padding:14px 12px}
+}
+@media(max-width:600px){.daily-food-overview{padding:17px 15px}.daily-food-heading{margin-bottom:15px}.daily-food-heading h2{font-size:18px}.daily-food-heading p{font-size:11px}.daily-food-count{font-size:10px;padding:5px 7px}.daily-rollup-identity h3{font-size:13px}.daily-rollup-quantity{max-width:98px}.daily-rollup-quantity>strong{font-size:15px}.daily-rollup-row>.daily-rollup-metrics{gap:8px;padding:10px}.daily-rollup-metric dd{font-size:13px}.daily-rollup-total.is-grand-total .daily-rollup-metric dd{font-size:16px}}

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "revision": 0,
+  "updatedAt": "2026-01-01T12:00:00.000Z",
+  "demoNotice": "DEMO / SYNTHETIC: All foods, quantities, nutrition values and notes are fictional examples, not personal inventory or dietary advice.",
+  "items": [
+    {
+      "id": "demo-mushrooms",
+      "name": "DEMO 蘑菇",
+      "category": "vegetable",
+      "quantity": 300,
+      "unit": "g",
+      "location": "冷藏",
+      "priority": true,
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "kcal": null, "protein": null, "carbs": null, "fat": null, "source": "unknown", "sourceNote": "DEMO：未提供营养信息。", "sourceText": "DEMO synthetic fixture: nutrition intentionally unknown." },
+      "notes": "DEMO：用于演示已知数量、未知营养的食材。",
+      "status": "available"
+    },
+    {
+      "id": "demo-oats",
+      "name": "DEMO 燕麦",
+      "category": "staple",
+      "quantity": 500,
+      "unit": "g",
+      "location": "常温",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "kcal": 380, "protein": 12, "carbs": 64, "fat": 8, "source": "label", "sourceNote": "DEMO：虚构包装标签。", "sourceText": "DEMO synthetic label per 100 g: 380 kcal, protein 12 g, carbs 64 g, fat 8 g." },
+      "notes": "DEMO：所有营养数值均为虚构演示数据。",
+      "status": "available"
+    },
+    {
+      "id": "demo-rice",
+      "name": "DEMO 米饭",
+      "category": "prepared",
+      "quantity": 2,
+      "unit": "份",
+      "gramsPerUnit": 150,
+      "location": "冷冻",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "kcal": 130, "protein": 3, "carbs": 28, "fat": 0.5, "source": "recipe", "sourceNote": "DEMO：虚构配方与分装重量。", "sourceText": "DEMO synthetic recipe fixture; each portion weighs 150 g." },
+      "notes": "DEMO：用于演示份数到克数的明确换算。",
+      "status": "available"
+    },
+    {
+      "id": "demo-beans",
+      "name": "DEMO 罐装豆",
+      "category": "protein",
+      "quantity": 1,
+      "unit": "罐",
+      "gramsPerUnit": 240,
+      "location": "常温",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "kcal": 110, "protein": 7, "carbs": 18, "fat": 1, "source": "label", "sourceNote": "DEMO：虚构包装标签。", "sourceText": "DEMO synthetic label fixture; one can contains 240 g." },
+      "notes": "DEMO：通用食材示例，没有真实品牌。",
+      "status": "available"
+    },
+    {
+      "id": "demo-apples",
+      "name": "DEMO 苹果",
+      "category": "fruit",
+      "quantity": 3,
+      "unit": "个",
+      "gramsPerUnit": 160,
+      "location": "冷藏",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "kcal": 50, "protein": 0.3, "carbs": 13, "fat": 0.2, "source": "estimate", "sourceNote": "DEMO：虚构估算值，非标签事实。", "sourceText": "DEMO synthetic estimate fixture; illustrative mass is 160 g each." },
+      "notes": "DEMO：演示估算来源与标签来源的区别。",
+      "status": "available"
+    },
+    {
+      "id": "demo-yogurt",
+      "name": "DEMO 酸奶",
+      "category": "other",
+      "quantity": null,
+      "unit": "g",
+      "location": "冷藏",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "kcal": 70, "protein": 5, "carbs": 6, "fat": 3, "source": "label", "sourceNote": "DEMO：虚构包装标签；余量未知。", "sourceText": "DEMO synthetic label fixture; the remaining quantity is intentionally unknown." },
+      "notes": "DEMO：食材存在但余量未知，不能当作零库存。",
+      "status": "available"
+    },
+    {
+      "id": "demo-potatoes",
+      "name": "DEMO 土豆（待核）",
+      "category": "staple",
+      "quantity": null,
+      "unit": "g",
+      "location": "常温",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "source": "unknown", "sourceNote": "DEMO：数量和营养均待核。", "sourceText": "DEMO synthetic pending fixture; no quantities or nutrients are implied." },
+      "notes": "DEMO：核实数量与资料后再用于排餐。",
+      "status": "pending"
+    },
+    {
+      "id": "demo-stew",
+      "name": "DEMO 炖菜（待核）",
+      "category": "prepared",
+      "quantity": null,
+      "unit": "份",
+      "nutrition": { "basisAmount": 1, "basisUnit": "份", "kcal": 250, "protein": null, "carbs": null, "fat": null, "source": "recipe", "sourceNote": "DEMO：虚构且不完整的配方资料。", "sourceText": "DEMO synthetic partial recipe fixture; portion count and remaining nutrients are unknown." },
+      "notes": "DEMO：用于演示待核状态与不完整营养。",
+      "status": "pending"
+    },
+    {
+      "id": "demo-broccoli",
+      "name": "DEMO 西兰花（已耗尽）",
+      "category": "vegetable",
+      "quantity": 0,
+      "unit": "g",
+      "location": "冷冻",
+      "nutrition": { "basisAmount": 100, "basisUnit": "g", "source": "unknown", "sourceText": "DEMO synthetic depleted fixture." },
+      "notes": "DEMO：保留耗尽条目以演示库存状态。",
+      "status": "depleted"
+    }
+  ],
+  "preferences": [
+    "DEMO：优先参考现有库存安排示例菜单。",
+    "DEMO：未知数量和营养保持未知，核实后再更新。"
+  ],
+  "events": [],
+  "operationIds": [],
+  "plans": []
+}

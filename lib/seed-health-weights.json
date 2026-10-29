@@ -1,0 +1,22 @@
+[
+  { "date": "2025-12-28", "weightKg": 82.0, "sourceText": "DEMO synthetic measurement 01: 82.00 kg; fictional example, not a real person." },
+  { "date": "2025-12-29", "weightKg": 82.1, "sourceText": "DEMO synthetic measurement 02: 82.10 kg; fictional example, not a real person." },
+  { "date": "2025-12-30", "weightKg": 81.9, "sourceText": "DEMO synthetic measurement 03: 81.90 kg; fictional example, not a real person." },
+  { "date": "2026-12-28", "weightKg": 81.8, "sourceText": "DEMO synthetic measurement 04: 81.80 kg; fictional example, not a real person." },
+  { "date": "2026-12-29", "weightKg": 81.7, "sourceText": "DEMO synthetic measurement 05: 81.70 kg; fictional example, not a real person." },
+  { "date": "2027-01-02", "weightKg": 81.6, "sourceText": "DEMO synthetic measurement 06: 81.60 kg; fictional example, not a real person." },
+  { "date": "2027-01-03", "weightKg": 81.8, "sourceText": "DEMO synthetic measurement 07: 81.80 kg; fictional example, not a real person." },
+  { "date": "2027-01-05", "weightKg": 81.5, "sourceText": "DEMO synthetic measurement 08: 81.50 kg; fictional example, not a real person." },
+  { "date": "2027-01-07", "weightKg": 81.4, "sourceText": "DEMO synthetic measurement 09: 81.40 kg; fictional example, not a real person." },
+  { "date": "2027-01-08", "weightKg": 81.6, "sourceText": "DEMO synthetic measurement 10: 81.60 kg; fictional example, not a real person." },
+  { "date": "2027-01-09", "weightKg": 81.3, "sourceText": "DEMO synthetic measurement 11: 81.30 kg; fictional example, not a real person." },
+  { "date": "2027-01-10", "weightKg": 81.5, "sourceText": "DEMO synthetic measurement 12: 81.50 kg; fictional example, not a real person." },
+  { "date": "2027-01-11", "weightKg": 81.2, "sourceText": "DEMO synthetic measurement 13: 81.20 kg; fictional example, not a real person." },
+  { "date": "2027-01-12", "weightKg": 81.4, "sourceText": "DEMO synthetic measurement 14: 81.40 kg; fictional example, not a real person." },
+  { "date": "2027-01-13", "weightKg": 81.1, "sourceText": "DEMO synthetic measurement 15: 81.10 kg; fictional example, not a real person." },
+  { "date": "2027-01-14", "weightKg": 81.3, "sourceText": "DEMO synthetic measurement 16: 81.30 kg; fictional example, not a real person." },
+  { "date": "2027-01-15", "weightKg": 81.0, "sourceText": "DEMO synthetic measurement 17: 81.00 kg; fictional example, not a real person." },
+  { "date": "2027-01-16", "weightKg": 81.2, "sourceText": "DEMO synthetic measurement 18: 81.20 kg; fictional example, not a real person." },
+  { "date": "2027-01-17", "weightKg": 80.9, "sourceText": "DEMO synthetic measurement 19: 80.90 kg; fictional example, not a real person." },
+  { "date": "2027-01-18", "weightKg": 81.0, "sourceText": "DEMO synthetic measurement 20: 81.00 kg; fictional example, not a real person." }
+]

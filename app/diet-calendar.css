@@ -1,0 +1,40 @@
+.diet-calendar{--dc-ink:#36533a;--dc-muted:#73836b;--dc-border:#e1e8d9;box-sizing:border-box;width:100%;min-width:0;padding:18px;border:1px solid var(--dc-border);border-radius:13px;background:#fafbf5;color:var(--dc-ink);margin:0 0 24px;font-size:14px;line-height:1.5}
+.diet-calendar *{box-sizing:border-box}
+.diet-calendar .diet-calendar-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;min-width:0}
+.diet-calendar .diet-calendar-eyebrow{font-size:12px;color:var(--dc-muted);letter-spacing:1px}
+.diet-calendar .diet-calendar-heading h3{font-size:23px;font-weight:600;line-height:1.35;margin:3px 0 0;color:var(--dc-ink);letter-spacing:-.3px}
+.diet-calendar .diet-calendar-button,.diet-calendar .diet-calendar-arrow{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border:1px solid #dce5d2;border-radius:9px;background:#fffefb;color:#58714f;padding:8px 12px;font:inherit;font-size:14px;line-height:1.4;cursor:pointer}
+.diet-calendar .diet-calendar-button:hover,.diet-calendar .diet-calendar-arrow:hover:not(:disabled){background:#edf4e6;border-color:#a5bd94;color:#3e6138}
+.diet-calendar .diet-calendar-navigation{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:10px;margin-bottom:14px}
+.diet-calendar .diet-calendar-arrow{width:44px;padding:0}
+.diet-calendar .diet-calendar-arrow:disabled{opacity:.38;cursor:not-allowed}
+.diet-calendar .diet-calendar-month-picker{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;color:var(--dc-muted);font-size:13px}
+.diet-calendar .diet-calendar-month-picker input{display:block;min-width:0;width:174px;max-width:100%;min-height:44px;border:1px solid #dce5d2;border-radius:9px;background:#fffefb;color:var(--dc-ink);padding:7px 10px;font:inherit;font-size:16px;line-height:1.4;cursor:pointer}
+.diet-calendar button:focus-visible,.diet-calendar input:focus-visible{outline:3px solid #89aa78;outline-offset:2px;position:relative;z-index:1}
+.diet-calendar .diet-calendar-summary{display:flex;align-items:center;gap:7px 15px;flex-wrap:wrap;margin-bottom:14px;color:#718468;font-size:12px;line-height:1.7}
+.diet-calendar .diet-calendar-summary>span{display:inline-flex;align-items:center;gap:6px}
+.diet-calendar .diet-calendar-key-final,.diet-calendar .diet-calendar-key-draft{display:inline-block;width:8px;height:8px;border-radius:3px;background:#70915f;flex-shrink:0}
+.diet-calendar .diet-calendar-key-draft{border:1px solid #b4935c;background:#f5e9d3}
+.diet-calendar .diet-calendar-pending-count{color:#928164}
+.diet-calendar .diet-calendar-weekdays,.diet-calendar .diet-calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-width:0}
+.diet-calendar .diet-calendar-weekdays{margin-bottom:7px;text-align:center;font-size:13px;color:#74846b}
+.diet-calendar .diet-calendar-weekdays span{padding:4px 0}
+.diet-calendar .diet-calendar-weekdays .is-weekend{color:#9b8a6a}
+.diet-calendar .diet-calendar-day{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:3px;min-width:0;width:100%;min-height:93px;border:1px solid #e7ebdf;border-radius:9px;background:#fffefb;color:#687b5f;padding:8px 6px;text-align:left;font:inherit;font-size:14px;line-height:1.3;cursor:pointer;transition:background .12s,border-color .12s,box-shadow .12s}
+.diet-calendar .diet-calendar-day:hover{border-color:#9fb98d;background:#f3f7ec}
+.diet-calendar .diet-calendar-day.has-final{border-color:#ccdcbe;background:#eff5e8}
+.diet-calendar .diet-calendar-day.has-draft{border-color:#e2d3b9;border-style:dashed;background:#fcf6eb}
+.diet-calendar .diet-calendar-day.is-today{box-shadow:inset 0 0 0 1px #8fa67e}
+.diet-calendar .diet-calendar-day.is-selected{border-color:#4b714c;border-style:solid;box-shadow:inset 0 0 0 1px #4b714c;background:#e2eed7;color:#365c32}
+.diet-calendar .diet-calendar-date{display:flex;align-items:center;justify-content:space-between;gap:3px;font-weight:600;font-size:15px;color:inherit}
+.diet-calendar .diet-calendar-date i{width:5px;height:5px;border-radius:50%;background:#6c8e59;flex-shrink:0}
+.diet-calendar .diet-calendar-energy{display:block;max-width:100%;font-size:15px;font-weight:600;line-height:1.35;color:#476b3e;white-space:nowrap;letter-spacing:-.4px;margin-top:4px}
+.diet-calendar .diet-calendar-energy.is-incomplete{font-size:12px;font-weight:500;letter-spacing:0;color:#8c7b5c}
+.diet-calendar .diet-calendar-unit{font-size:10px;line-height:1.2;color:#849374}
+.diet-calendar .diet-calendar-state{display:block;align-self:flex-start;font-size:11px;line-height:1.4;color:#759365;margin-top:auto}
+.diet-calendar .diet-calendar-state.is-draft{color:#a07f4d}
+.diet-calendar .diet-calendar-empty{min-width:0;min-height:93px}
+.diet-calendar .diet-calendar-legend{display:flex;gap:6px 15px;flex-wrap:wrap;font-size:12px;color:#7b8c70;margin-top:14px;line-height:1.7}
+.diet-calendar .diet-calendar-selection{margin:12px 0 0;border-top:1px solid #e4eadb;padding-top:12px;font-size:12px;line-height:1.7;color:#728569;overflow-wrap:anywhere}
+@media(max-width:600px){.diet-calendar{padding:12px 10px;margin-bottom:19px;border-radius:11px}.diet-calendar .diet-calendar-heading{gap:10px;margin-bottom:13px}.diet-calendar .diet-calendar-heading h3{font-size:21px}.diet-calendar .diet-calendar-button{padding:8px 10px}.diet-calendar .diet-calendar-navigation{gap:7px;margin-bottom:12px}.diet-calendar .diet-calendar-month-picker{gap:0}.diet-calendar .diet-calendar-month-picker>span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.diet-calendar .diet-calendar-month-picker input{width:170px;padding:7px 8px}.diet-calendar .diet-calendar-summary{gap:5px 10px;font-size:11px;margin-bottom:11px}.diet-calendar .diet-calendar-weekdays,.diet-calendar .diet-calendar-days{gap:3px}.diet-calendar .diet-calendar-day{padding:6px 2px;border-radius:7px;gap:3px;min-height:87px}.diet-calendar .diet-calendar-empty{min-height:87px}.diet-calendar .diet-calendar-date{font-size:14px}.diet-calendar .diet-calendar-energy{font-size:12px;letter-spacing:-.35px;margin-top:5px}.diet-calendar .diet-calendar-energy.is-incomplete{font-size:11px;letter-spacing:0}.diet-calendar .diet-calendar-state{font-size:10px}.diet-calendar .diet-calendar-legend{gap:5px 12px;margin-top:12px}.diet-calendar .diet-calendar-selection{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.diet-calendar .diet-calendar-day{transition:none}}
