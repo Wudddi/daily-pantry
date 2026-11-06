@@ -15,6 +15,7 @@ This log records application changes. Private inventory, health records and audi
 - Clarified that checklist calories describe planned food only, while daily nutrition uses reported intake, retained menu portions and counted supplements. Added a read-only comparison for actual-food adjustments, supplement calories and incomplete or historical evidence; personal checks and stock accounting are unchanged.
 - Added preview-and-apply food-plan sync. Supported completed meals align to existing actual food, amounts and frozen nutrition; partial meals retain unreported planned food. Unreported meals, actual history, personal checks, supplements, stock and prior accounting remain unchanged.
 - Sync previews retain reliable recipe links and warn before removing ambiguous groups. Unsupported meals are left unchanged while independent supported changes can proceed. A pending intake draft requires review, and revision/fingerprint checks plus stable retries prevent stale or duplicate updates.
+- Removed the redundant daily-nutrition comparison panel from the checklist. Planned-food labels, checked and unchecked plan totals, and explicit plan sync remain; nutrition calculations and inventory accounting are unchanged.
 
 ## 2026-11-02
 

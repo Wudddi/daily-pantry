@@ -11,8 +11,7 @@ function renderLanguage(language){
     import React from 'react';
     import {renderToStaticMarkup} from 'react-dom/server';
     import ts from 'typescript';
-    import {basisFixture,copy,freezeDeep} from './tests/fixtures/nutrition-basis.mjs';
-    import {resolveDietDays} from './lib/diet-day-summary.mjs';
+    import {basisFixture,freezeDeep} from './tests/fixtures/nutrition-basis.mjs';
     import {applyPersonalFoodCheck} from './lib/personal-food-checklist.mjs';
     const dataUrl=text=>'data:text/javascript;base64,'+Buffer.from(text).toString('base64');
     const stub=dataUrl('export default function Stub(){return null;}');
@@ -21,54 +20,45 @@ function renderLanguage(language){
     code=code.replace(/^import\\s+["'][^"']+\\.css["'];?\\r?\\n?/gm,'');
     code=code.replace(/(?<=^import[^\\n]*)from\\s+(["'])([^"']+)\\1/gm,(_m,_q,s)=>'from '+JSON.stringify(
       s.startsWith('@/lib/')?pathToFileURL(process.cwd()+'/lib/'+s.slice('@/lib/'.length)).href:s.startsWith('./')?stub:import.meta.resolve(s)));
-    const {default:Checklist,ChecklistNutritionBasis:Basis}=await import(dataUrl(code));
-    const state=freezeDeep(basisFixture()),before=JSON.stringify(state),plan=state.plans[0],header=resolveDietDays([plan],[])[0].totals;
-    const render=(p=plan,h=header)=>renderToStaticMarkup(React.createElement(Basis,{plan:p,items:state.items,headerTotals:h}));
+    const {default:Checklist}=await import(dataUrl(code));
+    const state=freezeDeep(basisFixture()),before=JSON.stringify(state),plan=state.plans[0];
     let writes=0;
-    const checklist=renderToStaticMarkup(React.createElement(Checklist,{plan,items:state.items,revision:0,busy:false,headerTotals:header,
+    const render=p=>renderToStaticMarkup(React.createElement(Checklist,{plan:p,items:state.items,revision:0,busy:false,
       mutate:async()=>{writes++;throw Error('Unexpected write');},refresh:async()=>{},onOpenAdvanced(){}}));
+    const checklist=render(plan);
     const marked=applyPersonalFoodCheck(state,{planId:plan.id,mealId:'breakfast',wholeMeal:true,checked:true},'2026-01-15T13:00:00.000Z');
-    const unknown=copy(plan);unknown.meals[0].actualEntries[0].quantity=null;
-    const partialHeader=resolveDietDays([unknown],[])[0].totals;
-    const historyHeader=copy(header);historyHeader[0].source='matched_history_total';
-    const mismatch=copy(header);mismatch[0].value+=1;
-    const clean=copy(plan);clean.meals[0].actualEntries[0].quantity=100;clean.supplementDoses=[];
-    const cleanHeader=resolveDietDays([clean],[])[0].totals;
-    const cleanHistory=copy(cleanHeader);cleanHistory[0].source='matched_history_total';
-    const cleanMismatch=copy(cleanHeader);cleanMismatch[0].value+=1;
-    const supplementOnly=copy(clean);supplementOnly.supplementDoses=copy(plan.supplementDoses);
-    const macroOnly=copy(clean);macroOnly.meals[0].actualEntries[0].nutritionSnapshot.nutrition.protein=0.2;
-    console.log(JSON.stringify({basis:render(),checkedBasis:render(marked.plans[0]),checklist,unknown:render(unknown,partialHeader),
-      historical:render(plan,historyHeader),mismatch:render(plan,mismatch),clean:render(clean,cleanHeader),
-      cleanHistory:render(clean,cleanHistory),cleanMismatch:render(clean,cleanMismatch),
-      supplementOnly:render(supplementOnly,resolveDietDays([supplementOnly],[])[0].totals),
-      macroOnly:render(macroOnly,resolveDietDays([macroOnly],[])[0].totals),writes,unchanged:JSON.stringify(state)===before}));
+    const markedChecklist=render(marked.plans[0]);
+    console.log(JSON.stringify({checklist,markedChecklist,writes,unchanged:JSON.stringify(state)===before,
+      stockUnchanged:JSON.stringify(marked.items)===JSON.stringify(state.items),
+      actualUnchanged:JSON.stringify(marked.plans[0].meals)===JSON.stringify(plan.meals),
+      supplementsUnchanged:JSON.stringify(marked.plans[0].supplementDoses)===JSON.stringify(plan.supplementDoses)}));
   `;
   const result=spawnSync(process.execPath,['--input-type=module','-e',code],{cwd:root,env:{...process.env,PANTRY_UI_LANGUAGE:language},encoding:'utf8',maxBuffer:2_000_000});
   assert.equal(result.status,0,result.stderr||result.stdout);
   return JSON.parse(result.stdout.trim());
 }
 const text=html=>html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ');
+const progress=html=>text(html.match(/<div class="food-progress-strip"[^>]*>([\s\S]*?)<\/div>/)?.[1]??'');
 
 for(const language of ['zh-CN','en']){
-  test(`the ${language} checklist labels planned food separately and explains the actual-food and supplement difference without adding an intake action`,()=>{
+  test(`the ${language} checklist omits the removed nutrition explanation while retaining planned counts and plan sync without writes`,()=>{
     const output=renderLanguage(language),chinese=language==='zh-CN';
-    const labels=chinese
-      ? ['为什么与全天营养不同','计划食物','实际报告带来的调整','补给已知热量','当前全天汇总']
-      : ['Why daily nutrition differs','Planned food','Reported food adjustment','Known supplement calories','Current daily summary'];
-    for(const label of labels)assert.ok(output.basis.includes(label),label);
-    assert.ok(output.checklist.includes(chinese?'计划食物清单 · 不含补给':'Planned food checklist · excludes supplements'));
-    assert.ok(output.checklist.includes(chinese?'已勾选计划：':'Checked plan:'));
-    assert.ok(output.checklist.includes(chinese?'未勾选计划：':'Unchecked plan:'));
-    for(const value of ['300','+50','10','360'])assert.ok(text(output.basis).includes(value),value);
-    assert.doesNotMatch(output.basis,/<input|<button|<form/);
-    assert.equal(output.checkedBasis,output.basis);
-    assert.ok(output.unknown.includes(chinese?'未知差额不按0处理':'unknown differences are not zero'));
-    assert.ok(output.historical.includes(chinese?'这些数字不能直接当作完整等式':'these figures are not a complete equation'));
-    assert.ok(output.mismatch.includes(chinese?'与本对照存在差异':'differs from this comparison'));
-    assert.equal(output.clean,'','An entirely equal complete food-only baseline needs no comparison panel');
-    for(const field of ['cleanHistory','cleanMismatch','supplementOnly','macroOnly'])assert.ok(output[field].includes(labels[0]),field);
+    for(const html of [output.checklist,output.markedChecklist]){
+      assert.doesNotMatch(html,/food-nutrition-basis|为什么与全天营养不同|Why daily nutrition differs/);
+      assert.ok(html.includes(chinese?'计划食物清单 · 不含补给':'Planned food checklist · excludes supplements'));
+      assert.match(html,/food-plan-sync-trigger/);
+      assert.ok(html.includes(chinese?'一键同步当日计划':'Sync this day'));
+      assert.match(html,/food-meal-planned-label/);
+    }
+    const original=progress(output.checklist),marked=progress(output.markedChecklist);
+    assert.match(original,chinese?/已勾选计划：\s*(?:≈\s*)?0\s*千卡/:/Checked plan:\s*(?:≈\s*)?0\s*kcal/);
+    assert.match(original,chinese?/未勾选计划：\s*(?:≈\s*)?300\s*千卡/:/Unchecked plan:\s*(?:≈\s*)?300\s*kcal/);
+    assert.match(marked,chinese?/已勾选计划：\s*(?:≈\s*)?100\s*千卡/:/Checked plan:\s*(?:≈\s*)?100\s*kcal/);
+    assert.match(marked,chinese?/未勾选计划：\s*(?:≈\s*)?200\s*千卡/:/Unchecked plan:\s*(?:≈\s*)?200\s*kcal/);
     assert.equal(output.writes,0);
     assert.equal(output.unchanged,true);
+    assert.equal(output.stockUnchanged,true);
+    assert.equal(output.actualUnchanged,true);
+    assert.equal(output.supplementsUnchanged,true);
   });
 }

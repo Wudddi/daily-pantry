@@ -11,7 +11,6 @@ import { intakeDraftView, type IntakeDraftMeal } from '@/lib/intake-draft.mjs';
 import { buildChecklistAction, canReceiveChecklistFood, groupChecklistRows, nextChecklistMealId, type ChecklistAction, type ChecklistGroup } from '@/lib/checklist-actions.mjs';
 import { isPersonalFoodChecked } from '@/lib/personal-food-checklist.mjs';
 import { personalFoodChecklistView } from '@/lib/personal-food-view.mjs';
-import { checklistNutritionBasis } from '@/lib/checklist-nutrition-basis.mjs';
 import { previewFoodPlanSync } from '@/lib/sync-food-plan.mjs';
 import { canonicalLocalDate } from '@/lib/calendar-date.mjs';
 import { groupMealRecipeRows } from '@/lib/meal-recipe-groups-view.mjs';
@@ -20,7 +19,7 @@ import './day-food-checklist.css';
 
 type Latest = { plan: DietPlan; items: FoodItem[]; revision: number };
 export type DayFoodChecklistProps = Latest & {
-  active?: boolean; headerTotals?: readonly PlanNutritionTotal[];
+  active?: boolean;
   busy: boolean; error?: string; mutate: (action: string, payload: Record<string, unknown>, message: string) => Promise<boolean>;
   refresh: () => Promise<unknown>; getLatest?: () => Latest | null; onOpenAdvanced?: () => void; onAddFood?: (mealId:string)=>void;
 };
@@ -82,7 +81,7 @@ function checklistSections(source:Meal,meal:IntakeDraftMeal):ChecklistSection[] 
   });
 }
 
-export default function DayFoodChecklist({ plan, items, revision, busy, error = '', mutate, refresh, getLatest, onOpenAdvanced, onAddFood, active = true, headerTotals }: DayFoodChecklistProps) {
+export default function DayFoodChecklist({ plan, items, revision, busy, error = '', mutate, refresh, getLatest, onOpenAdvanced, onAddFood, active = true }: DayFoodChecklistProps) {
   const latestRef = useRef<Latest>({ plan, items, revision }); latestRef.current = { plan, items, revision };
   const apiRef = useRef({ mutate, refresh, getLatest }); apiRef.current = { mutate, refresh, getLatest };
   const queueRef = useRef<QueueEntry[]>([]), runningRef = useRef(false), mountedRef = useRef(true);
@@ -302,7 +301,6 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
     <div className="food-checklist-toolbar"><p>{uiText("Personal checks · inventory unchanged")}</p><span role="status">{saving ? <><Loader2 size={12} className="spin"/>{uiText("Saving")}{queued.length > 1 ? " · " + queued.length + uiText(" items") : ''}</> : notice}</span></div>
     <div className="food-checklist-plan-tools"><p className="food-checklist-plan-basis">{uiText("Planned food checklist · excludes supplements")}</p><button type="button" className="food-plan-sync-trigger" aria-haspopup="dialog" aria-expanded={syncOpen} disabled={paused || busy || saving || queued.length > 0} onClick={() => { cancelLongPress(); cancelDrag(); setSyncOpen(true); }}><ArrowRightLeft size={14}/>{plan.date === canonicalLocalDate() ? uiText("Sync today's plan") : uiText("Sync this day's plan")}</button></div>
     <div className="food-progress-strip" aria-label={uiText("Personal checklist progress")}><span>{uiText("Checked plan: ")}<strong>{total(view.totals.checked, 'kcal')}</strong>{uiText(" kcal")}</span><span>{uiText("Unchecked plan: ")}<strong>{total(view.totals.unchecked, 'kcal')}</strong>{uiText(" kcal")}</span><button type="button" className="food-day-trigger" aria-haspopup="dialog" aria-expanded={dayTotalsOpen} onClick={() => setDayTotalsOpen(value => !value)}>{uiText("Daily ingredients")}<ChevronDown size={12}/></button></div>
-    <ChecklistNutritionBasis plan={plan} items={items} headerTotals={headerTotals}/>
     {syncOpen && <FoodPlanSyncDialog plan={plan} items={items} revision={revision} busy={busy || saving || queued.length > 0} mutate={mutate} onClose={() => setSyncOpen(false)} onReviewDraft={() => { setSyncOpen(false); onOpenAdvanced?.(); }}/>}
     {!!plan.intakeDraft && <div className="food-checklist-warning" role="status"><span>{uiText("An unsubmitted intake draft is saved. Personal checks are unaffected; review it before redistributing food.")}</span><button type="button" onClick={onOpenAdvanced}>{uiText("Review intake draft")}</button></div>}
     {(error || localError) && <div className="food-checklist-warning" role="alert"><span>{error || localError}</span>{paused ? <><button type="button" onClick={() => void retry()}>{uiText("Retry same action")}</button><button type="button" onClick={() => void reloadLatest()}>{uiText("Load latest and cancel pending action")}</button></> : <button type="button" onClick={() => void refresh()}>{uiText("Refresh and review")}</button>}</div>}
@@ -366,39 +364,6 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
       <details className="food-edit-details"><summary>{uiText("Full name and more actions")}</summary><p>{editGroup.name}</p><button type="button" onClick={onOpenAdvanced}>{uiText("Advanced: intake records and corrections")}</button></details>
     </div></div>}
   </section>;
-}
-
-
-type BasisTotal = { key:string; value:number|null; partial?:boolean; supplementPartial?:boolean; estimated?:boolean };
-function BasisCalories({ total, signed = false }: { total?:BasisTotal; signed?:boolean }) {
-  if (!total || total.value === null || !Number.isFinite(total.value)) return <span className="food-basis-incomplete">{uiText("Needs review")}</span>;
-  const known = total.partial || total.supplementPartial;
-  const magnitude = Math.abs(total.value), amount = magnitude > 0 && magnitude < 1 ? '<1' : n(magnitude, 0);
-  return <>{known && <small>{uiText("Known: ")}</small>}{total.estimated ? '≈ ' : ''}{signed && total.value !== 0 ? total.value > 0 ? '+' : '−' : ''}{amount}<small> kcal</small></>;
-}
-
-/** Read-only comparison. Personal checkmarks never change nutrition evidence. */
-export function ChecklistNutritionBasis({ plan, items, headerTotals }: { plan:DietPlan; items:readonly FoodItem[]; headerTotals?:readonly PlanNutritionTotal[] }) {
-  const basis = checklistNutritionBasis(plan, items, { headerTotals });
-  const calorie = (totals:readonly BasisTotal[]) => totals.find(total => total.key === 'kcal');
-  const affected = basis.meals.filter(meal => meal.foodDelta.some(total => total.partial || total.value === null || Math.abs(total.value) > .000001));
-  const currentTotals = headerTotals ?? basis.totalTotals;
-  const needsComparison = (totals:readonly BasisTotal[]) => totals.some(total => total.value === null || !Number.isFinite(total.value) || total.partial || total.supplementPartial || Math.abs(total.value) > .000001);
-  if (basis.headerComparison.canReconcile && !needsComparison(basis.foodDelta) && !needsComparison(basis.supplementTotals)) return null;
-  return <details className="food-nutrition-basis" aria-label={uiText("Daily nutrition comparison")}><summary className="food-nutrition-basis-heading"><strong>{uiText("Why daily nutrition differs")}</strong><ChevronDown size={14}/></summary><p className="food-nutrition-basis-description">{uiText("Checks below follow planned food only. The daily summary uses reported intake plus the remaining menu and counted supplements.")}</p>
-    <dl className="food-nutrition-basis-grid">
-      <div><dt>{uiText("Planned food")}</dt><dd><BasisCalories total={calorie(basis.plannedFoodTotals)}/></dd></div>
-      <div><dt>{uiText("Reported food adjustment")}</dt><dd><BasisCalories total={calorie(basis.foodDelta)} signed/></dd></div>
-      <div><dt>{uiText("Known supplement calories")}</dt><dd><BasisCalories total={calorie(basis.supplementTotals)}/></dd></div>
-      <div className="food-nutrition-basis-current"><dt>{uiText("Current daily summary")}</dt><dd><BasisCalories total={calorie(currentTotals)}/></dd></div>
-    </dl>
-    {affected.length > 0 && <ul className="food-nutrition-basis-meals" aria-label={uiText("Meals with changed nutrition evidence")}>{affected.map(meal => {
-      const source = plan.meals.find(source => source.id === meal.mealId);
-      return <li key={meal.mealId}><strong>{slots[source?.slot ?? 'other'] ?? source?.title ?? uiText("This meal")}</strong><span>{uiText("Planned food: ")}<BasisCalories total={calorie(meal.plannedFoodTotals)}/></span><span>{uiText("Current nutrition: ")}<BasisCalories total={calorie(meal.effectiveFoodTotals)}/></span></li>;
-    })}</ul>}
-    {!basis.headerComparison.canReconcile && <p className="food-nutrition-basis-note" role="status">{basis.headerComparison.historyBasis ? uiText("The daily summary includes matching historical nutrition evidence. Review its sources; these figures are not a complete equation.") : uiText("Some nutrition evidence is incomplete or differs from this comparison. Known amounts are shown; unknown differences are not zero.")}</p>}
-    <p className="food-nutrition-basis-note">{uiText("Current nutrition follows reported food for completed meals and retains the unreported plan for partial meals. Checked and unchecked calories are plan reminders, not intake or food left to eat.")}</p>
-  </details>;
 }
 
 
