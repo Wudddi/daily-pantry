@@ -23,16 +23,16 @@ let compiled = ts.transpileModule(await readFile(new URL('../app/intake-draft-ed
   fileName: 'intake-draft-editor.tsx',
   compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText.replace(/import\s+["']\.\/intake-draft-editor\.css["'];?/g, '');
-compiled = compiled.replace(/from\s+(["'])([^"']+)\1/g, (_match, _quote, specifier) => 'from ' + JSON.stringify(
+compiled = compiled.replace(/(?<=^import[^\n]*)from\s+(["'])([^"']+)\1/gm, (_match, _quote, specifier) => 'from ' + JSON.stringify(
   specifier === 'react' ? hooksUrl : specifier.startsWith('@/') ? new URL('../' + specifier.slice(2), import.meta.url).href : import.meta.resolve(specifier),
 ));
 const { default: IntakeDraftEditor } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
-const food = { id: 'rice', itemId: 'rice', name: '米饭', quantity: 200, unit: 'g',
-  nutritionSnapshot: { name: '米饭', unit: 'g', gramsPerUnit: null,
+const food = { id: 'rice', itemId: 'rice', name: "Rice", quantity: 200, unit: 'g',
+  nutritionSnapshot: { name: "Rice", unit: 'g', gramsPerUnit: null,
     nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 100, protein: 2, carbs: 20, fat: 1, source: 'label' } } };
 function plan(withDraft = true) {
   const p = { id: 'concurrent-day', format: 'meals_v1', date: '2048-01-02', status: 'draft', title: '并发测试',
-    meals: [{ id: 'lunch', slot: 'lunch', title: '午餐', state: 'reserved', plannedItems: [structuredClone(food)],
+    meals: [{ id: 'lunch', slot: 'lunch', title: "Lunch", state: 'reserved', plannedItems: [structuredClone(food)],
       actualEntries: [], actualTime: null, actualTimeText: '', reportHistory: [], completionReportedAt: null }],
     supplementDoses: [], inventoryAccounting: 'settled', accountingIssues: [] };
   if (withDraft) p.intakeDraft = { id: 'same-draft-id', baseFingerprint: intakePlanFingerprint(p),
@@ -82,7 +82,7 @@ test('save uses the edit-start cloud content token after an unrelated refresh, n
   assert.equal(editor.input().props.value, '45');
   const stored = JSON.parse([...editor.storage.values()][0]);
   assert.equal(stored.expectedDraftVersion, initialVersion);
-  await editor.click('保存草稿');
+  await editor.click("Save draft");
   assert.equal(editor.calls.length, 1);
   assert.equal(editor.calls[0].payload.expectedDraftVersion, initialVersion);
   assert.equal(editor.calls[0].payload.draft.consumed[0].quantity, 45);
@@ -93,15 +93,15 @@ test('a same-ID remote edit blocks save and submit, preserves local input, and l
   const changed = structuredClone(p); changed.intakeDraft.consumed[0].quantity = 60;
   editor.render({ plan: changed, revision: 9 });
   assert.equal(editor.input().props.value, '45');
-  assert.match(text(editor.tree), /进食草稿已在别处更新/);
-  assert.equal(editor.button('保存草稿').props.disabled, true);
-  assert.equal(editor.button('记录这些已吃').props.disabled, true);
+  assert.match(text(editor.tree), /The intake draft changed elsewhere/);
+  assert.equal(editor.button("Save draft").props.disabled, true);
+  assert.equal(editor.button("Record this intake").props.disabled, true);
   editor.render({ plan: structuredClone(changed), revision: 10 });
   assert.equal(editor.input().props.value, '45');
-  await editor.click('放弃本机修改'); editor.render();
+  await editor.click("Discard local changes"); editor.render();
   assert.equal(editor.calls.length, 0);
   assert.equal(editor.input().props.value, '60');
-  assert.match(text(editor.tree), /云端草稿和实际记录均未删除/);
+  assert.match(text(editor.tree), /Local changes discarded and latest draft loaded\. The saved draft and intake records were not deleted\./);
 });
 
 test('session-restored edits retain their old token and legacy local copies without a token cannot overwrite cloud data', () => {
@@ -110,17 +110,17 @@ test('session-restored edits retain their old token and legacy local copies with
   p.intakeDraft.consumed[0].quantity = 60;
   const restored = mount(p, { draft: local, inputs: {}, invalidInputs: {}, expectedDraftVersion: initialVersion });
   assert.equal(restored.input().props.value, '45');
-  assert.match(text(restored.tree), /进食草稿已在别处更新/);
-  assert.equal(restored.button('保存草稿').props.disabled, true);
+  assert.match(text(restored.tree), /The intake draft changed elsewhere/);
+  assert.equal(restored.button("Save draft").props.disabled, true);
   const legacy = mount(p, { draft: local, inputs: {}, invalidInputs: {} });
-  assert.match(text(legacy.tree), /这份本机输入缺少云端版本依据/);
-  assert.equal(legacy.button('保存草稿').props.disabled, true);
-  assert.equal(legacy.button('记录这些已吃').props.disabled, true);
+  assert.match(text(legacy.tree), /These local inputs have no saved draft version/);
+  assert.equal(legacy.button("Save draft").props.disabled, true);
+  assert.equal(legacy.button("Record this intake").props.disabled, true);
 });
 
 test('new drafts save with a null token, and submit compares the just-saved content version', async () => {
   const p = plan(false), editor = mount(p); editor.edit('45');
-  await editor.click('记录这些已吃');
+  await editor.click("Record this intake");
   assert.equal(editor.calls.length, 2);
   const [saved, submitted] = editor.calls;
   assert.equal(saved.action, 'save_intake_draft');
@@ -133,7 +133,7 @@ test('new drafts save with a null token, and submit compares the just-saved cont
 
 test('discard compares the loaded cloud content version before removing a saved draft', async () => {
   const p = plan(), editor = mount(p);
-  await editor.click('放弃草稿');
+  await editor.click("Discard draft");
   assert.equal(editor.calls.length, 1);
   assert.equal(editor.calls[0].action, 'discard_intake_draft');
   assert.equal(editor.calls[0].payload.expectedDraftVersion, intakeDraftVersion(p.intakeDraft));
@@ -142,11 +142,11 @@ test('discard compares the loaded cloud content version before removing a saved 
 
 test('an uncertain two-step submit retry keeps the submit operation ID while preserving its draft content token', async () => {
   const p = plan(), editor = mount(p, undefined, action => action !== 'submit_intake_draft');
-  editor.edit('45'); await editor.click('记录这些已吃');
+  editor.edit('45'); await editor.click("Record this intake");
   const firstSubmit = editor.calls[1];
   const savedPlan = structuredClone(p); savedPlan.intakeDraft = structuredClone(editor.calls[0].payload.draft);
   editor.render({ plan: savedPlan, revision: 5 });
-  await editor.click('记录这些已吃');
+  await editor.click("Record this intake");
   assert.equal(editor.calls.length, 4);
   assert.equal(editor.calls[3].payload.operationId, firstSubmit.payload.operationId);
   assert.equal(editor.calls[3].payload.expectedDraftVersion, firstSubmit.payload.expectedDraftVersion);

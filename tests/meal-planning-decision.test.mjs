@@ -4,10 +4,9 @@ import { readPlanningInventory } from '../lib/inventory-planning-read.mjs';
 import { validateItem } from '../lib/inventory.mjs';
 
 const NOW = '2026-10-27T16:00:00.000Z';
-// This fixture contains fictional preferences, reports and food batches.
-const LABEL = { basisAmount:100, basisUnit:'g', kcal:100, protein:10, carbs:10, fat:2, source:'label', sourceText:'示例旧标签，不应替代新菜单重算' };
+const LABEL = { basisAmount:100, basisUnit:'g', kcal:100, protein:10, carbs:10, fat:2, source:'label', sourceText:'真实旧标签，不应替代新菜单重算' };
 const food = (id, extra={}) => validateItem({id, name:id, category:'prepared', quantity:500, unit:'g', location:'冷冻', nutrition:LABEL, ...extra}, NOW);
-const intake = (id, itemId, quantity, extra={}) => ({id, itemId, quantity, unit:'g', sourceText:'合成示例摄入报告',
+const intake = (id, itemId, quantity, extra={}) => ({id, itemId, quantity, unit:'g', sourceText:'用户真实报告原文',
   nutritionSnapshot:{name:itemId, unit:'g', gramsPerUnit:null, nutrition:LABEL}, ...extra});
 const frozen = value => { if (value && typeof value==='object') { Object.freeze(value); for (const v of Object.values(value)) frozen(v); } return value; };
 
@@ -21,19 +20,19 @@ function fixture(extraItems=[]) {
       {id:'lunch', slot:'lunch', state:'completed', title:'旧午餐', actualTime:'12:30',
         plannedItems:[{id:'unused-plan-pasta',itemId:'pasta',quantity:70,unit:'g'}],
         actualEntries:[intake('ate-finished-bread','finished-bread',50), intake('not-ate-pasta','pasta',0)]},
-      {id:'dinner', slot:'dinner', state:'completed', title:'旧晚餐', actualTime:'19:30',
+      {id:'dinner', slot:'dinner', state:'completed', title:"Previous dinner", actualTime:'19:30',
         plannedItems:[{id:'unused-plan-rice-dinner',itemId:'rice',quantity:50,unit:'g'}],
-        actualEntries:[intake('ate-eggs','eggs',2,{unit:'个', nutritionSnapshot:{name:'鸡蛋',unit:'个',gramsPerUnit:50,nutrition:{...LABEL,basisAmount:1,basisUnit:'个',kcal:80}}})]},
+        actualEntries:[intake('ate-eggs','eggs',2,{unit:'个', nutritionSnapshot:{name:"Eggs",unit:'个',gramsPerUnit:50,nutrition:{...LABEL,basisAmount:1,basisUnit:'个',kcal:80}}})]},
     ]};
   return {schemaVersion:1, revision:42, updatedAt:NOW, events:[], operationIds:[],
-    preferences:['演示菜单每餐只选一个示例主菜。','示例午餐配一份示例蔬菜，明确另选时例外。'],
+    preferences:['未主动要求时不安排米饭和意面。','保持熟悉搭配，先考虑冷藏易耗食物，不为清库存增加食量。'],
     items:[
       food('yogurt',{category:'protein',location:'冷藏'}),
       food('finished-bread',{category:'bread',quantity:0,status:'depleted',location:'常温'}),
       food('eggs',{category:'protein',unit:'个',quantity:12,gramsPerUnit:50,location:'冷藏',nutrition:{...LABEL,basisAmount:1,basisUnit:'个',kcal:80}}),
       food('rice',{category:'staple',location:'常温'}),food('pasta',{category:'staple',location:'常温'}),
-      food('fresh-spinach',{name:'示例新鲜菠菜',category:'vegetable',location:'冷藏',freshness:{opened:true,openedOn:'2026-10-26',sourceText:'合成示例：示例菠菜于26号开封，存放冷藏。'}}),
-      food('frozen-last-tail',{name:'冷冻示例备餐尾袋',category:'prepared',unit:'袋',quantity:1,location:'冷冻',gramsPerUnit:145}),
+      food('fresh-spinach',{name:'新鲜菠菜',category:'vegetable',location:'冷藏',freshness:{opened:true,openedOn:'2026-10-26',sourceText:'昨天开封了新鲜菠菜，放在冷藏'}}),
+      food('frozen-last-tail',{name:'冷冻牛肉尾袋',category:'prepared',unit:'袋',quantity:1,location:'冷冻',gramsPerUnit:130}),
       ...extraItems,
     ],
     plans:[actualPlan,{...actualPlan,id:'future-actual-must-not-copy',date:'2026-10-28',title:'未来记录不作参考'}], dietHistory:[]};

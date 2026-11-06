@@ -8,11 +8,11 @@ const nutrition = (kcal = 100, unit = 'g') => ({ basisAmount: unit === 'g' ? 100
   basisUnit: unit, kcal, protein: 10, carbs: 15, fat: 2, source: 'label' });
 const snapshot = (id, kcal = 100, unit = 'g') => ({ name: id, unit, nutrition: nutrition(kcal, unit),
   gramsPerUnit: null, ingredients: '', supplementFacts: '' });
-const food = (id, quantity = 100) => ({ id: `line-${id}`, itemId: id, quantity, unit: 'g', sourceText: '用户菜单' });
+const food = (id, quantity = 100) => ({ id: `line-${id}`, itemId: id, quantity, unit: 'g', sourceText: "User menu" });
 const meal = (id, quantity = 100) => ({ id, slot: id === 'snack' ? 'snack' : id, title: id,
   plannedTime: '12:00', plannedItems: [food(id, quantity)] });
 const actual = (id, quantity = 50) => ({ id: `actual-${id}`, itemId: id, name: id, quantity,
-  unit: 'g', nutritionSnapshot: snapshot(id), reportedAt: at, sourceText: '明确吃完',
+  unit: 'g', nutritionSnapshot: snapshot(id), reportedAt: at, sourceText: "Explicitly completed",
   quantitySource: 'reported', correctionHistory: [] });
 function materialized(id, quantity = 100) {
   const raw = meal(id, quantity);
@@ -24,19 +24,19 @@ function dose(id, quantity = 5) {
   return { id: `dose-${id}`, itemId: id, unit: 'g', plannedQuantity: quantity, plannedTime: null,
     timingSlot: 'breakfast', requirement: 'daily', scheduled: true, plannedMealId: null,
     nutritionSnapshot: snapshot(id, 0), actualEntries: [{ ...actual(id, quantity), nutritionSnapshot: snapshot(id, 0) }], state: 'completed',
-    completionReportedAt: at, reportHistory: [{ reportedAt: at, mode: 'complete', sourceText: '用户打卡' }] };
+    completionReportedAt: at, reportHistory: [{ reportedAt: at, mode: 'complete', sourceText: "User check-in" }] };
 }
 const items = ['breakfast', 'lunch', 'snack', 'dinner', 'creatine', 'beta'].map(id => ({ id,
   ...snapshot(id, ['creatine', 'beta'].includes(id) ? 0 : 100), quantity: 1000, category: 'staple' }));
 function incident() {
   const doses = [dose('creatine'), dose('beta', 1.6)];
   return { id: 'daily-food-2026-10-22', date: '2026-10-22', format: 'meals_v1', status: 'reserved',
-    title: '每日补给记录', timeZone: 'America/Toronto', notes: '', meals: [], supplementDoses: doses,
+    title: "Daily supplement record", timeZone: 'America/Toronto', notes: '', meals: [], supplementDoses: doses,
     supplementOnly: true, supplementAccounting: 'actual_only', intakeBasis: 'reported_only',
     createdAt: at, updatedAt: at, items: [], accountedDebits: [{ itemId: 'creatine', quantity: 5 }],
     inventoryAccounting: 'settled', accountingIssues: [], allocationAdjustments: {},
-    draft: { id: 'daily-food-2026-10-22', date: '2026-10-22', title: '已保存四餐', timeZone: 'America/Toronto',
-      notes: '原菜单备注', meals: [meal('breakfast', 100), meal('lunch', 200), meal('snack', 50), meal('dinner', 300)],
+    draft: { id: 'daily-food-2026-10-22', date: '2026-10-22', title: "Saved four-meal menu", timeZone: 'America/Toronto',
+      notes: "Original menu notes", meals: [meal('breakfast', 100), meal('lunch', 200), meal('snack', 50), meal('dinner', 300)],
       supplementDoses: doses.map(({ actualEntries, reportHistory, state, completionReportedAt, nutritionSnapshot, ...planned }) => planned) } };
 }
 const kcal = summary => summary.totals.find(total => total.key === 'kcal').value;
@@ -50,7 +50,7 @@ test('legacy supplement-only owner projects all four saved meals with the same c
   const current = projectCurrentDietPlan(freeze(source), freeze(structuredClone(items)));
   assert.equal(current.id, source.id);
   assert.equal(current.status, 'reserved');
-  assert.equal(current.title, '已保存四餐');
+  assert.equal(current.title, "Saved four-meal menu");
   assert.equal(current.supplementOnly, false);
   assert.deepEqual(current.meals.map(row => row.id), ['breakfast', 'lunch', 'snack', 'dinner']);
   assert.deepEqual(current.meals.map(row => row.plannedItems[0].id), ['line-breakfast', 'line-lunch', 'line-snack', 'line-dinner']);
@@ -82,8 +82,8 @@ test('current draft planning changes never overwrite completed meals, reports, c
   const source = incident();
   source.meals = [materialized('breakfast', 100)];
   Object.assign(source.meals[0], { state: 'completed', actualEntries: [actual('breakfast', 80)],
-    actualTime: '09:17', actualTimeText: '九点多', completionReportedAt: at,
-    reportHistory: [{ reportedAt: at, mode: 'complete', sourceText: '早餐吃了80克' }] });
+    actualTime: '09:17', actualTimeText: "After nine", completionReportedAt: at,
+    reportHistory: [{ reportedAt: at, mode: 'complete', sourceText: "Ate 80 g at breakfast" }] });
   source.draft.meals[0].plannedItems[0].quantity = 999;
   source.draft.meals[0].actualEntries = [actual('breakfast', 999)];
   source.draft.meals[0].state = 'reserved';
@@ -149,7 +149,7 @@ test('draft snapshots remain frozen before inventory fallback, and replaced food
 test('new untracked draft food uses its explicit portion nutrition without requiring inventory ownership', () => {
   const source = incident();
   source.draft.meals = [meal('breakfast')];
-  source.draft.meals[0].plannedItems[0] = { id: 'untracked', itemId: null, name: '自制点心', unit: 'g',
+  source.draft.meals[0].plannedItems[0] = { id: 'untracked', itemId: null, name: "Homemade snack", unit: 'g',
     quantity: 50, nutrition: nutrition(200) };
   assert.equal(kcal(resolveDietDays([source], [], items)[0]), 100);
 });

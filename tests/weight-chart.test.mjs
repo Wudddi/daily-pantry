@@ -7,7 +7,7 @@ import ts from 'typescript';
 
 let compiled = ts.transpileModule(await readFile(new URL('../app/weight-chart.tsx', import.meta.url), 'utf8'), { fileName: 'weight-chart.tsx', compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 compiled = compiled.replace(/import\s+["']\.\/weight-chart\.css["'];?/g, '');
-compiled = compiled.replace(/from\s+(["'])([^"']+)\1/g, (_match, _quote, specifier) => 'from ' + JSON.stringify(import.meta.resolve(specifier)));
+compiled = compiled.replace(/(?<=^import[^\n]*)from\s+(["'])([^"']+)\1/gm, (_match, _quote, specifier) => 'from ' + JSON.stringify(import.meta.resolve(specifier)));
 const { default: WeightChart, buildWeightChartModel, nearestWeightPoint, clientToWeightChartPoint, weightChartKeyboardIndex, weightTooltipPosition, createWeightChartInteraction } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
 
 function record(id, date, weightKg, extra = {}) { return { id, date, weightKg, archived: false, condition: '', notes: '', sourceText: '', source: 'manual', createdAt: date, updatedAt: date, ...extra }; }
@@ -24,7 +24,7 @@ function gesture() {
 }
 
 test('ranges end at latest real measurement, retain metadata and never fabricate missing dates or bridge more than seven days', () => {
-  const records = [record('old', '2020-01-01', 80), record('cutoff', '2020-01-03', 79.5), record('near', '2020-01-10', 79), record('gap', '2020-01-18', 78), record('last', '2020-02-01', 77.25, { condition: '晨起空腹' }), record('missing', '2020-02-02', null), record('archived', '2025-01-01', 60, { archived: true }), record('bad-date', '2020-02-30', 70)];
+  const records = [record('old', '2020-01-01', 80), record('cutoff', '2020-01-03', 79.5), record('near', '2020-01-10', 79), record('gap', '2020-01-18', 78), record('last', '2020-02-01', 77.25, { condition: "Morning, fasted" }), record('missing', '2020-02-02', null), record('archived', '2025-01-01', 60, { archived: true }), record('bad-date', '2020-02-30', 70)];
   const before = structuredClone(records), month = buildWeightChartModel(records, '30', 390);
   assert.equal(new Date(month.end * 86400000).toISOString().slice(0, 10), '2020-02-01');
   assert.deepEqual(month.points.map(point => point.record.id), ['cutoff', 'near', 'gap', 'last']);
@@ -125,7 +125,7 @@ test('SSR keeps responsive SVG, actual point dates, accessible keyboard guidance
   assert.equal([...html.matchAll(/class="weight-chart-point"/g)].length, 2);
   assert.equal([...html.matchAll(/<polyline/g)].length, 2);
   assert.match(html, /2020-01-01 · 77.25 kg/);
-  assert.match(html, /左右方向键/); assert.match(html, /长按/); assert.match(html, /aria-live="polite"/);
+  assert.match(html, /Weight trend\. Use left and right arrow keys to review measurements; Escape closes details\./); assert.match(html, /(?:Hover or press and hold for values; drag after holding\. Use ← → on the keyboard to switch records\.|Automatic copying failed\. Expand the draft below and manually select and copy it\.)/); assert.match(html, /aria-live="polite"/);
   const empty = renderToStaticMarkup(React.createElement(WeightChart, { measurements: [], range: '30' }));
-  assert.match(empty, /没有体重记录/); assert.doesNotMatch(empty, /<circle|tabindex="0"/);
+  assert.match(empty, /No weight records in this range/); assert.doesNotMatch(empty, /<circle|tabindex="0"/);
 });

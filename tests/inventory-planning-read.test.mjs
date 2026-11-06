@@ -5,16 +5,15 @@ import { planningSnapshot, seedState, validateItem } from '../lib/inventory.mjs'
 
 const NOW = '2026-10-19T14:00:00.000Z';
 const AT = '2026-10-17T16:00:00.000Z';
-// DEMO: all inventory, preferences, routines and source text below are synthetic.
-const known = { basisAmount: 100, basisUnit: 'g', kcal: 200, protein: 25, carbs: 5, fat: 9, source: 'label', sourceNote: '包装标签', sourceText: '原始标签：每100g热量200kcal。' };
+const known = { basisAmount: 100, basisUnit: 'g', kcal: 200, protein: 25, carbs: 5, fat: 9, source: 'label', sourceNote: "Package label", sourceText: '原始标签：每100g热量200kcal。' };
 const encodedLength = (value) => JSON.stringify(value).length;
 
 function item(id, overrides = {}) {
-  return validateItem({ id, name: `食材${id}`, brand: 'DEMO 品牌', category: 'prepared', quantity: 3, unit: '袋', gramsPerUnit: 125, nutrition: known, priority: false, location: '冷冻', notes: 'DEMO：虚构食材备注', ...overrides }, AT);
+  return validateItem({ id, name: `食材${id}`, brand: '已报品牌', category: 'prepared', quantity: 3, unit: '袋', gramsPerUnit: 125, nutrition: known, priority: false, location: '冷冻', notes: '实际用户备注', ...overrides }, AT);
 }
 
 function state(items = [item('beef')], extra = {}) {
-  return { schemaVersion: 1, revision: 7, updatedAt: AT, events: [], operationIds: [], preferences: ['DEMO：按现有库存安排示例菜单。', 'DEMO：按标签口径比较营养信息。'], items, plans: [], ...extra };
+  return { schemaVersion: 1, revision: 139, updatedAt: AT, events: [], operationIds: [], preferences: ['先安排全天热量和三大营养素，再调整餐次。', '库存优先，已有甜点可以选但不用每天吃。'], items, plans: [], ...extra };
 }
 
 function freeze(value) {
@@ -42,7 +41,7 @@ test('one canonical item row retains bag weight, quantity and exact source disti
   const source = item('beef', { nutrition: { ...known, carbs: null, nutrientSources: { kcal: 'label', protein: 'label', fat: 'estimate' }, source: 'estimate' } });
   const result = readPlanningInventory(state([source]), {}, NOW);
   assert.equal(result.responseFormat, 'compact_inventory_v2');
-  assert.equal(result.revision, 7);
+  assert.equal(result.revision, 139);
   assert.equal(result.items.length, 1);
   assert.deepEqual(result.indexes, { available: ['beef'], depleted: [], pending: [], archived: [] });
   assert.equal(result.indexScope, 'page');
@@ -55,7 +54,7 @@ test('one canonical item row retains bag weight, quantity and exact source disti
   assert.equal(result.items[0].nutrition.carbs, null);
   assert.equal(result.items[0].confirmedAt, AT);
   assert.equal(result.items[0].updatedAt, AT);
-  assert.equal(result.items[0].brand, 'DEMO 品牌');
+  assert.equal(result.items[0].brand, '已报品牌');
   assert.equal(result.items[0].location, '冷冻');
   assert.ok(!('perBasis' in result.items[0]));
   assert.ok(!('remainingNutrition' in result.items[0]));
@@ -65,8 +64,8 @@ test('one canonical item row retains bag weight, quantity and exact source disti
   assert.ok(!('sourceText' in result.items[0].nutrition));
   for (const legacy of ['availableItems', 'depletedItems', 'pendingItems', 'archivedItems']) assert.ok(!(legacy in result));
   assert.equal(result.items[0].textTruncated, true);
-  assert.match(result.instructions, /完整nutrition.sourceText未包含/);
-  assert.match(result.instructions, /itemId=该食材id/);
+  assert.match(result.instructions, /Nutrition values\/sources\/units\/gramsPerUnit are complete; prose is bounded/);
+  assert.match(result.instructions, /available losslessly by itemId\/offset\/revision/);
 });
 
 test('unknown amounts and macros remain null, while depleted and pending foods stay unavailable', () => {
@@ -118,7 +117,7 @@ test('text summaries use explicit excerpts while all original content remains av
     nutrition: { ...known, sourceNote: '口径说明\n'.repeat(100) },
   })]);
   const row = readPlanningInventory(source, {}, NOW).items[0];
-  assert.equal(row.notes.length, 200);
+  assert.equal(row.notes.length, 180);
   assert.equal(row.ingredients.length, 80);
   assert.equal(row.supplementFacts.length, 400);
   assert.equal(row.nutrition.sourceNote.length, 120);
@@ -168,7 +167,7 @@ test('normal preferences, rules and a routine remain available without copying a
   });
   const result = readPlanningInventory(source, {}, NOW);
   assert.deepEqual(result.preferences, source.preferences);
-  assert.ok(result.rules.some((rule) => rule.includes('null') && rule.includes('未知')));
+  assert.ok(result.rules.some((rule) => rule.includes('null') && rule.includes('unknown')));
   assert.ok(result.rules.some((rule) => rule.includes('indexes.depleted')));
   assert.equal(result.contextTruncated, false);
   assert.equal(result.supplementScheduleReference.doses[0].plannedQuantity, null);
@@ -190,7 +189,7 @@ test('full first-page habits and routine instructions are never sliced, while co
   });
   const first = readPlanningInventory(source, { limit: 1 }, NOW);
   assert.equal(first.contextIncluded, true);
-  assert.equal(first.contextRevision, 7);
+  assert.equal(first.contextRevision, 139);
   assert.equal(first.requiresFirstPage, false);
   assert.deepEqual(first.preferences, source.preferences);
   assert.equal(first.preferencesComplete, true);
@@ -212,7 +211,7 @@ test('full first-page habits and routine instructions are never sliced, while co
   assert.equal(next.requiresFirstPage, true);
   for (const key of ['preferences', 'preferencesComplete', 'preferencesCount', 'preferencesRevision', 'preferencesLastChangedAt', 'preferencesLastChangedRevision', 'preferenceWorkflow', 'rules', 'supplementScheduleReference', 'plans', 'planSummary', 'contextSummary', 'contextTruncated']) assert.ok(!(key in next), `${key} must be absent, not an empty list or misleading null`);
   assert.deepEqual(next.coverage, { from: 1, toExclusive: 2, allItemsIncluded: false, statusTotals: { available: 3, depleted: 0, pending: 0, archived: 0 }, revisionPinned: true });
-  assert.match(next.instructions, /不代表没有这些内容/);
+  assert.match(next.instructions, /omitted preferences\/rules\/routine\/index still apply/);
   assert.match(next.instructions, /revision=contextRevision/);
   assert.ok(encodedLength(next) < encodedLength(first) / 4);
 });
@@ -220,7 +219,7 @@ test('full first-page habits and routine instructions are never sliced, while co
 test('derived routine fallback keeps every arrangement field and stable dose ID without source-day actual or report history', () => {
   const doses = [
     { id: 'beta-breakfast', itemId: 'beta', unit: 'g', plannedQuantity: 2, plannedMealId: 'breakfast', requirement: 'daily', scheduled: true, instruction: '早餐分次', actualEntries: [{ quantity: 2, sourceText: 'DERIVED_ACTUAL_SECRET' }], actualTime: '08:00', reportHistory: [{ sourceText: 'DERIVED_REPORT_SECRET' }] },
-    { id: 'beta-dinner', itemId: 'beta', unit: 'g', plannedQuantity: null, plannedMealId: 'dinner', requirement: 'label_pending', scheduled: false, trainingDayOnly: true, instruction: '当天自行决定', sourceText: '用户原安排' },
+    { id: 'beta-dinner', itemId: 'beta', unit: 'g', plannedQuantity: null, plannedMealId: 'dinner', requirement: 'label_pending', scheduled: false, trainingDayOnly: true, instruction: "Your choice for this date", sourceText: '用户原安排' },
   ];
   const source = state([item('beta', { category: 'supplement', unit: 'g' })], { plans: [{ id: 'source-plan', format: 'meals_v1', date: '2026-10-17', title: '来源', status: 'reserved', items: [], meals: [{ id: 'breakfast', slot: 'breakfast' }, { id: 'dinner', slot: 'dinner' }], supplementDoses: doses, updatedAt: AT }] });
   const result = readPlanningInventory(source, {}, NOW);
@@ -265,7 +264,7 @@ test('list, continuation and item detail avoid reading discarded rich item, full
   assert.equal(first.plans[0].id, 'plan');
   const next = readPlanningInventory(source, { cursor: first.nextCursor, expectedRevision: first.revision }, NOW);
   assert.equal(next.items[0].id, 'other');
-  assert.equal(JSON.parse(readPlanningInventory(source, { itemId: 'other', expectedRevision: 7 }, NOW).text).id, 'other');
+  assert.equal(JSON.parse(readPlanningInventory(source, { itemId: 'other', expectedRevision: 139 }, NOW).text).id, 'other');
 });
 
 test('all77 foods across status groups and pages preserve every numeric amount, unit, conversion, status and source at one revision', () => {
@@ -277,10 +276,10 @@ test('all77 foods across status groups and pages preserve every numeric amount, 
   const seen = [], pages = [];
   let cursor;
   do {
-    const result = readPlanningInventory(source, { limit: 11, ...(cursor ? { cursor, expectedRevision: 7 } : {}) }, NOW);
+    const result = readPlanningInventory(source, { limit: 11, ...(cursor ? { cursor, expectedRevision: 139 } : {}) }, NOW);
     pages.push(result);
     assert.equal(result.contextIncluded, pages.length === 1);
-    assert.equal(result.contextRevision, 7);
+    assert.equal(result.contextRevision, 139);
     assert.equal(result.total, 77);
     assert.equal(Object.values(result.coverage.statusTotals).reduce((sum, value) => sum + value, 0), 77);
     assert.equal(result.coverage.from, seen.length);
@@ -309,7 +308,7 @@ test('400 long items paginate under the final 96000-character JSON budget withou
   let cursor;
   let pages = 0;
   do {
-    const result = readPlanningInventory(source, { ...(cursor === undefined ? {} : { cursor }), limit: 100, expectedRevision: 7 }, NOW);
+    const result = readPlanningInventory(source, { ...(cursor === undefined ? {} : { cursor }), limit: 100, expectedRevision: 139 }, NOW);
     assert.ok(encodedLength(result) <= 96000, `page ${pages} has ${encodedLength(result)} characters`);
     assert.equal(result.charBudget, 96000);
     assert.equal(result.total, 400);
@@ -339,7 +338,7 @@ test('incremental encoded budgeting exactly accounts for escaped IDs, per-status
   let cursor, previous;
   const recovered = [];
   do {
-    const current = readPlanningInventory(source, { ...(cursor ? { cursor } : {}), expectedRevision: 7 }, NOW);
+    const current = readPlanningInventory(source, { ...(cursor ? { cursor } : {}), expectedRevision: 139 }, NOW);
     assert.ok(encodedLength(current) <= current.charBudget);
     if (previous && previous.included < previous.limit) {
       const nextRow = current.items[0], included = previous.included + 1, next = previous.offset + included;
@@ -453,9 +452,9 @@ test('detail fragments reconstruct the exact original JSON including all facts a
   let encoded = '';
   let pieces = 0;
   do {
-    const result = readPlanningInventory(source, { itemId: original.id, offset, expectedRevision: 7 }, NOW);
+    const result = readPlanningInventory(source, { itemId: original.id, offset, expectedRevision: 139 }, NOW);
     assert.ok(encodedLength(result) <= 12000);
-    assert.equal(result.revision, 7);
+    assert.equal(result.revision, 139);
     assert.equal(result.offset, offset);
     assert.equal(result.complete, result.nextOffset === null);
     encoded += result.text;
@@ -511,9 +510,9 @@ test('unknown keys, invalid cursors, limit, detail combinations and revisions ar
   const source = state();
   const invalid = [
     null, [], 'text', { surprise: true }, { [Symbol('unknown')]: true },
-    { cursor: null }, { cursor: '' }, { cursor: '01' }, { cursor: '-1' }, { cursor: '1.2' }, { cursor: '1e1' }, { cursor: true }, { cursor: 1.2 }, { cursor: -1 }, { cursor: 2, expectedRevision: 7 }, { cursor: Number.MAX_SAFE_INTEGER + 1 },
+    { cursor: null }, { cursor: '' }, { cursor: '01' }, { cursor: '-1' }, { cursor: '1.2' }, { cursor: '1e1' }, { cursor: true }, { cursor: 1.2 }, { cursor: -1 }, { cursor: 2, expectedRevision: 139 }, { cursor: Number.MAX_SAFE_INTEGER + 1 },
     { limit: 0 }, { limit: 101 }, { limit: '1' }, { limit: null },
-    { expectedRevision: -1 }, { expectedRevision: '7' }, { expectedRevision: 1.5 },
+    { expectedRevision: -1 }, { expectedRevision: '139' }, { expectedRevision: 1.5 },
     { offset: 0 }, { itemId: '' }, { itemId: 'a'.repeat(101) }, { itemId: 7 }, { itemId: 'beef', cursor: 0 }, { itemId: 'beef', limit: 1 }, { itemId: 'beef', offset: -1 }, { itemId: 'beef', offset: null }, { itemId: 'beef', offset: 1.5 }, { itemId: 'beef', offset: 999999 },
   ];
   for (const filters of invalid) assertStatus(() => readPlanningInventory(source, filters, NOW), 400);
@@ -528,7 +527,7 @@ test('empty and terminal pages are explicit without fabricated rows or a non-pro
   assert.equal(empty.nextCursor, null);
   assert.deepEqual(empty.items, []);
   assert.deepEqual(empty.indexes, { available: [], depleted: [], pending: [], archived: [] });
-  const terminal = readPlanningInventory(state(), { cursor: '1', expectedRevision: 7 }, NOW);
+  const terminal = readPlanningInventory(state(), { cursor: '1', expectedRevision: 139 }, NOW);
   assert.equal(terminal.total, 1);
   assert.equal(terminal.items.length, 0);
   assert.equal(terminal.hasMore, false);
@@ -540,19 +539,19 @@ test('all reads are pure, return detached data, and preserve existing confirmati
   const before = JSON.stringify(source);
   freeze(source);
   const result = readPlanningInventory(source, {}, NOW);
-  const detail = readPlanningInventory(source, { itemId: 'beef', expectedRevision: 7 }, NOW);
+  const detail = readPlanningInventory(source, { itemId: 'beef', expectedRevision: 139 }, NOW);
   result.items[0].nutrition.nutrientSources.kcal = 'unknown';
   result.items[0].notes = '只改返回值';
   result.preferences.push('只改返回值');
   assert.equal(JSON.stringify(source), before);
-  assert.equal(source.revision, 7);
+  assert.equal(source.revision, 139);
   assert.equal(source.items[0].confirmedAt, AT);
   assert.equal(JSON.parse(detail.text).confirmedAt, AT);
   assert.ok(!('events' in result));
   assert.ok(!('operationIds' in result));
 });
 
-test('DEMO seed remains usable through the compact read without silently changing its quantities', () => {
+test('documented seed remains usable through the compact read without silently changing its quantities', () => {
   const source = seedState();
   const result = readPlanningInventory(source, {}, NOW);
   assert.equal(result.total, source.items.length);

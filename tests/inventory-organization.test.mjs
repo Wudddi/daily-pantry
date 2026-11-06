@@ -21,9 +21,9 @@ test('category groups stay stable after label edits and manual priorities only o
  assert.deepEqual(groupInventoryItems(inventoryViewItems(before)).map(g=>[g.category,g.items.length]),[['prepared',1],['protein',2],['vegetable',1],['bread',1]]);
 });
 test('filters and alias search stay in scope, exclude unknown supplements from missing macros, and never mutate saved items',()=>{
- const items=[food('yogurt','protein',{aliases:['0%希腊酸奶'],nutrition:{kcal:50,protein:10,carbs:null,fat:0}}),food('caffeine','supplement',{status:'pending',quantity:null,nutrition:{kcal:null,protein:null,carbs:null,fat:null}}),food('butter','condiment'),food('old-yogurt','protein',{status:'archived',aliases:['旧标签']})];
+ const items=[food('yogurt','protein',{aliases:["0% Greek yogurt"],nutrition:{kcal:50,protein:10,carbs:null,fat:0}}),food('caffeine','supplement',{status:'pending',quantity:null,nutrition:{kcal:null,protein:null,carbs:null,fat:null}}),food('butter','condiment'),food('old-yogurt','protein',{status:'archived',aliases:['旧标签']})];
  const original=structuredClone(items);
- assert.deepEqual(inventoryViewItems(items,{query:'0%希腊酸奶'}).map(x=>x.id),['yogurt']);
+ assert.deepEqual(inventoryViewItems(items,{query:"0% Greek yogurt"}).map(x=>x.id),['yogurt']);
  assert.deepEqual(inventoryViewItems(items,{filter:'missing'}).map(x=>x.id),['yogurt']);
  assert.equal(inventoryViewItems(items,{scope:'supplement',filter:'missing'}).length,0);
  assert.deepEqual(inventoryViewItems(items,{scope:'supplement',filter:'pending'}).map(x=>x.id),['caffeine']);

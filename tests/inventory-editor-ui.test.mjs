@@ -13,41 +13,41 @@ source = source.replace('import DietRecords from "./diet-records";', 'const Diet
 source = source.replace(/import\s+["'][^"']+\.css["'];?/g, '');
 source += '\nexport {FoodModal, RestockModal};';
 let compiled = ts.transpileModule(source, { fileName:'inventory-editors.tsx', compilerOptions:{ jsx:ts.JsxEmit.ReactJSX, module:ts.ModuleKind.ESNext, target:ts.ScriptTarget.ES2022 } }).outputText;
-compiled = compiled.replace(/from\s+(["'])([^"']+)\1/g, (_match,_quote,specifier) => 'from '+JSON.stringify(specifier.startsWith('@/')?new URL('../'+specifier.slice(2),import.meta.url).href:import.meta.resolve(specifier)));
+compiled = compiled.replace(/(?<=^import[^;\n]*\s)from\s+(["'])([^"']+)\1/gm, (_match,_quote,specifier) => 'from '+JSON.stringify(specifier.startsWith('@/')?new URL('../'+specifier.slice(2),import.meta.url).href:import.meta.resolve(specifier)));
 const { FoodModal, RestockModal } = await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
-const food = patch => ({ id:'yogurt',name:'原味酸奶',category:'protein',brand:'PC',quantity:0,unit:'g',status:'depleted',priority:false,location:'冷藏',nutrition:{basisAmount:100,basisUnit:'g',kcal:60,protein:10,carbs:5,fat:0,source:'label',sourceNote:'原标签',sourceText:'原包装全文'},gramsPerUnit:null,ingredients:'牛奶',supplementFacts:'',notes:'旧记录',confirmedAt:'2026-10-20',updatedAt:'2026-10-20',...patch });
+const food = patch => ({ id:'yogurt',name:'原味酸奶',category:'protein',brand:'PC',quantity:0,unit:'g',status:'depleted',priority:false,location:'冷藏',nutrition:{basisAmount:100,basisUnit:'g',kcal:60,protein:10,carbs:5,fat:0,source:'label',sourceNote:'原标签',sourceText:'原包装全文'},gramsPerUnit:null,ingredients:"Milk",supplementFacts:'',notes:'旧记录',confirmedAt:'2026-10-20',updatedAt:'2026-10-20',...patch });
 const props = item => ({ item,saving:false,blocked:false,error:'',onClose(){},async onSave(){},async onArchive(){},existingItems:[],onReuse(){} });
 function input(html,label) { const element=html.match(new RegExp('<(?:input|select)(?=[^>]*aria-label="'+label+'")[^>]*>'));assert.ok(element,label+' should exist');return element[0]; }
 
 test('editing a depleted label locks both stock amount and unit instead of offering implicit replenishment',()=>{
  const html=renderToStaticMarkup(React.createElement(FoodModal,props(food())));
- assert.match(input(html,'编辑记录的当前余量'),/disabled=""/);
- assert.match(input(html,'编辑记录的当前余量'),/value="0"/);
- assert.match(input(html,'库存计量单位'),/disabled=""/);
- assert.match(html,/更正资料不会重新启用/);
- assert.match(html,/补货复用/);
+ assert.match(input(html,"Edit current record balance"),/disabled=""/);
+ assert.match(input(html,"Edit current record balance"),/value="0"/);
+ assert.match(input(html,"Inventory unit"),/disabled=""/);
+ assert.match(html,/Editing details does not reactivate it/);
+ assert.match(html,/Restock existing/);
  assert.match(html,/原包装全文/);
 });
 test('an archived record with old positive amount remains locked while aliases and nutrition stay editable',()=>{
- const html=renderToStaticMarkup(React.createElement(FoodModal,props(food({status:'archived',quantity:250,aliases:['0%希腊酸奶']}))));
- assert.match(input(html,'编辑记录的当前余量'),/disabled=""/);
- assert.match(input(html,'编辑记录的当前余量'),/value="250"/);
- assert.match(input(html,'库存计量单位'),/disabled=""/);
- assert.match(html,/<textarea[^>]*aria-label="同款别名（每行一个，可选）"[^>]*>0%希腊酸奶<\/textarea>/);
- assert.match(html,/已归档/);
+ const html=renderToStaticMarkup(React.createElement(FoodModal,props(food({status:'archived',quantity:250,aliases:["0% Greek yogurt"]}))));
+ assert.match(input(html,"Edit current record balance"),/disabled=""/);
+ assert.match(input(html,"Edit current record balance"),/value="250"/);
+ assert.match(input(html,"Inventory unit"),/disabled=""/);
+ assert.match(html,/<textarea[^>]*aria-label="Matching aliases \(one per line, optional\)"[^>]*>0% Greek yogurt<\/textarea>/);
+ assert.match(html,/Archived/);
 });
 test('active stock remains editable and depleted recipe batches direct the user to a new batch',()=>{
  const active=renderToStaticMarkup(React.createElement(FoodModal,props(food({status:'available',quantity:350}))));
- assert.doesNotMatch(input(active,'编辑记录的当前余量'),/disabled=/);
- assert.doesNotMatch(input(active,'库存计量单位'),/disabled=/);
+ assert.doesNotMatch(input(active,"Edit current record balance"),/disabled=/);
+ assert.doesNotMatch(input(active,"Inventory unit"),/disabled=/);
  const batch=renderToStaticMarkup(React.createElement(FoodModal,props(food({category:'prepared',unit:'袋',nutrition:{...food().nutrition,source:'recipe'}}))));
- assert.match(batch,/新制作的备餐请添加新批次/);
+ assert.match(batch,/add a new batch for newly prepared food/);
 });
 test('restock never pre-fills old or package quantity and cannot save until a current amount or explicit unknown choice',()=>{
  const html=renderToStaticMarkup(React.createElement(RestockModal,props(food({quantity:500,status:'archived'}))));
- assert.match(input(html,'补货后的当前总余量'),/value=""/);
+ assert.match(input(html,"Current total balance after restocking"),/value=""/);
  assert.match(html,/<button[^>]*type="submit"[^>]*disabled=""[^>]*>/);
- assert.match(html,/当前总余量/);
- assert.match(html,/已补货，余量不逐项盘点/);
+ assert.match(html,/Current total balance/);
+ assert.match(html,/Restocked; exact balance not tracked/);
  assert.doesNotMatch(html,/<input[^>]*type="checkbox"[^>]*checked=/);
 });

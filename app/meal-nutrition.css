@@ -40,6 +40,15 @@
 .meal-food-sources p{font-size:13px;line-height:1.9;margin:5px 0;color:#738267}
 .meal-food-sources .meal-source-original{white-space:pre-wrap;overflow-wrap:anywhere}
 .meal-nutrition-empty{font-size:14px;line-height:1.8;color:#79866f;margin:12px 0 18px}
+.meal-food-recipe{list-style:none;margin:10px 0}
+.meal-food-recipe>details>summary{display:flex;align-items:center;gap:12px;min-height:52px;padding:12px 14px;border:1px solid #e2e9d9;border-radius:9px;background:#f5f8ef;color:#536c45;cursor:pointer;list-style:none}
+.meal-food-recipe>details>summary::-webkit-details-marker{display:none}
+.meal-food-recipe>details>summary strong{font-size:15px;font-weight:600;overflow-wrap:anywhere;min-width:0}
+.meal-food-recipe>details>summary>span{font-size:12px;color:#849477;white-space:nowrap;margin-left:auto}
+.meal-food-recipe>details>summary::after{content:'';width:7px;height:7px;flex-shrink:0;border-right:1.5px solid #7a9268;border-bottom:1.5px solid #7a9268;transform:rotate(45deg);margin:0 3px 4px}
+.meal-food-recipe>details[open]>summary::after{transform:rotate(225deg);margin-top:5px}
+.meal-food-recipe>details>summary:focus-visible{outline:2px solid #8eab79;outline-offset:3px}
+.meal-food-recipe .meal-food-list{padding:0 12px}
 @container(min-width:740px){
  .meal-summary-grid{grid-template-columns:minmax(180px,.8fr) minmax(0,1.6fr);gap:22px}
  .meal-summary-macros{gap:22px}

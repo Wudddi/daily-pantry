@@ -6,7 +6,7 @@ const NOW = '2026-10-26T12:00:00.000Z', LATER = '2026-10-27T12:00:00.000Z';
 const raw = extra => ({ id: 'yogurt', name: 'Plain Greek Yogurt', brand: 'PC', category: 'protein', unit: 'g', quantity: 300, location: '冷藏', ...extra });
 const facts = extra => ({ opened: true, openedOn: '2026-10-25', bestBeforeDate: '2026-10-30', userConsumeByDate: '2026-10-28', sourceText: '用户明确说：这桶25号开封，标签Best Before30号，我希望28号用完。', ...extra });
 const fixture = extra => ({ schemaVersion: 1, revision: 0, updatedAt: NOW, items: [validateItem(raw(extra), NOW)], preferences: [], events: [], operationIds: [],
-  plans: [{ id: 'historical-menu', notes: '原菜单与实际事实不变', accountedDebits: [] }], dietHistory: [{ id: 'old-intake', sourceText: '用户实际原话' }] });
+  plans: [{ id: 'historical-menu', notes: '原菜单与实际事实不变', accountedDebits: [] }], dietHistory: [{ id: 'old-intake', sourceText: "Original user actual-intake text" }] });
 const mutate = (state, action, extra, operationId = `${action}-${state.revision}`) => applyMutation(state, { action, ...extra, operationId, expectedRevision: state.revision }, LATER);
 
 test('legacy items remain unchanged in shape and explicitly sourced optional facts normalize without inventing dates', () => {

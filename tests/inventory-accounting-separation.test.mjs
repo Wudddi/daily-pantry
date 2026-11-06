@@ -7,7 +7,7 @@ const AT='2026-10-26T16:00:00.000Z',LATER='2026-10-26T22:00:00.000Z';let seq=0;
 const mutate=(state,action,fields={},at=AT)=>applyMutation(state,{action,operationId:'physical-ledger-'+(++seq),expectedRevision:state.revision,...fields},at);
 const copy=value=>structuredClone(value);
 const food=(id,quantity,unit='g')=>validateItem({id,name:id,quantity,unit,category:id==='banana'?'fruit':'prepared',status:'available',nutrition:{basisAmount:100,basisUnit:unit,kcal:100,protein:5,carbs:20,fat:2,source:'estimate'}},AT);
-const planInput=(id,date)=>({id,date,title:'账务与实物分开',meals:[{id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'banana-l',itemId:'banana',quantity:1,unit:'个'},{id:'oats-l',itemId:'oats',quantity:50,unit:'g'}]}],supplementDoses:[]});
+const planInput=(id,date)=>({id,date,title:'账务与实物分开',meals:[{id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'banana-l',itemId:'banana',quantity:1,unit:'个'},{id:'oats-l',itemId:'oats',quantity:50,unit:'g'}]}],supplementDoses:[]});
 function fixture(){
   let state=mutate({schemaVersion:1,revision:0,updatedAt:AT,preferences:[],items:[food('banana',2,'个'),food('oats',500),food('other-food',700)],plans:[],events:[],operationIds:[]},'save_meal_plan_draft',{plan:planInput('day-26','2026-10-26')});
   state=mutate(state,'record_meal_intake',{planId:'day-26',mealId:'lunch',mode:'complete',entries:[{id:'ate-banana',itemId:'banana',quantity:1,unit:'个',sourceText:'实际1根香蕉'},{id:'ate-oats',itemId:'oats',quantity:50,unit:'g',sourceText:'实际50g燕麦'}]});

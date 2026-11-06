@@ -16,13 +16,13 @@ function apply(state,payload,at=AT) {
 }
 function fixture() {
   return apply({items:[item('pepper',1,'个','vegetable'),item('rice',1000),item('yogurt',200,'g','protein'),item('oil',1,'粒','supplement')],plans:[]},
-    {action:'save_meal_plan_draft',plan:{id:'day',date:DAY,title:'三餐',meals:[
-      {id:'breakfast',slot:'breakfast',title:'早餐',plannedItems:[{id:'yogurt-plan',itemId:'yogurt',quantity:95}]},
-      {id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'pepper-plan',itemId:'pepper',quantity:2},{id:'rice-plan',itemId:'rice',quantity:100}]},
+    {action:'save_meal_plan_draft',plan:{id:'day',date:DAY,title:"Three meals",meals:[
+      {id:'breakfast',slot:'breakfast',title:"Breakfast",plannedItems:[{id:'yogurt-plan',itemId:'yogurt',quantity:95}]},
+      {id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'pepper-plan',itemId:'pepper',quantity:2},{id:'rice-plan',itemId:'rice',quantity:100}]},
     ],supplementDoses:[{id:'oil-dose',itemId:'oil',plannedQuantity:1}]}});
 }
-const entry=(id,itemId,quantity,unit='g')=>({id,itemId,quantity,unit,sourceText:'用户明确报告实际用量'});
-const lunch=(state,entries,extra={})=>apply(state,{action:'record_meal_intake',planId:'day',mealId:'lunch',mode:'complete',entries,sourceText:'今天这餐实际吃完了',...extra});
+const entry=(id,itemId,quantity,unit='g')=>({id,itemId,quantity,unit,sourceText:"The user explicitly reported actual quantities"});
+const lunch=(state,entries,extra={})=>apply(state,{action:'record_meal_intake',planId:'day',mealId:'lunch',mode:'complete',entries,sourceText:"Actually finished this meal today",...extra});
 
 test('one pepper on the books and two actually eaten settles at zero without blocking rice or changing facts',()=>{
   const initial=fixture(),state=lunch(initial,[entry('ate-pepper','pepper',2,'个'),entry('ate-rice','rice',100)]);
@@ -99,8 +99,8 @@ test('an unknown actual amount on a known balance blocks only that item and is n
 });
 
 test('a missing historical inventory reference cannot stop a newly reported valid item or lose its actual fact',()=>{
-  const initial=fixture();plan(initial).meals[0].actualEntries=[{id:'old-ghost',itemId:'missing-item',quantity:1,unit:'g',name:'已移除的旧食物',
-    sourceText:'历史已报告',reportedAt:AT,quantitySource:'reported',nutritionSnapshot:null,correctionHistory:[]}];
+  const initial=fixture();plan(initial).meals[0].actualEntries=[{id:'old-ghost',itemId:'missing-item',quantity:1,unit:'g',name:"Removed historical food",
+    sourceText:"Historically reported",reportedAt:AT,quantitySource:'reported',nutritionSnapshot:null,correctionHistory:[]}];
   const state=lunch(initial,[entry('ate-rice','rice',100)]);
   assert.equal(stock(state,'rice').quantity,900);assert.equal(credit(state,'rice').quantity,100);
   assert(plan(state).accountingIssues.some(issue=>issue.itemId==='missing-item'&&issue.code==='ITEM_NOT_FOUND'));
@@ -131,9 +131,9 @@ test('a supplement shortage is never clamped but cannot block separately reporte
 
 test('shortfall audit survives replacement menus and an independent supplement check without changing food balances',()=>{
   let state=lunch(fixture(),[entry('ate-pepper','pepper',2,'个')]);
-  state=apply(state,{action:'save_meal_plan_draft',plan:{id:'day',date:DAY,title:'修改菜单',meals:[
-    {id:'breakfast',slot:'breakfast',title:'早餐',plannedItems:[{id:'yogurt-plan',itemId:'yogurt',quantity:90}]},
-    {id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'pepper-plan',itemId:'pepper',quantity:2},{id:'rice-plan',itemId:'rice',quantity:90}]},
+  state=apply(state,{action:'save_meal_plan_draft',plan:{id:'day',date:DAY,title:"Edit menu",meals:[
+    {id:'breakfast',slot:'breakfast',title:"Breakfast",plannedItems:[{id:'yogurt-plan',itemId:'yogurt',quantity:90}]},
+    {id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'pepper-plan',itemId:'pepper',quantity:2},{id:'rice-plan',itemId:'rice',quantity:90}]},
   ]}});
   const before=structuredClone(plan(state).accountingAdjustmentHistory),food=structuredClone(credit(state,'pepper'));
   state=apply(state,{action:'set_supplement_check',planId:'day',doseId:'oil-dose',checked:true});
@@ -142,7 +142,7 @@ test('shortfall audit survives replacement menus and an independent supplement c
 });
 
 test('midnight clamping is explicitly an automatic-menu basis, never new actual facts or personal check changes',()=>{
-  let state=fixture();state.dailyMenuSettlementPolicy={version:1,enabled:true,timeZone:'America/Toronto',startsOn:DAY,updatedAt:AT,sourceText:'用户开启午夜按菜单结算'};
+  let state=fixture();state.dailyMenuSettlementPolicy={version:1,enabled:true,timeZone:'America/Toronto',startsOn:DAY,updatedAt:AT,sourceText:"The user enabled midnight menu settlement"};
   plan(state).personalFoodChecks={version:1,checks:[],updatedAt:AT};
   const meals=structuredClone(plan(state).meals),doses=structuredClone(plan(state).supplementDoses),checks=structuredClone(plan(state).personalFoodChecks);
   const payload={action:'settle_daily_menu',planId:'day',effectiveDate:DAY,policyStartDate:DAY,confirmed:true};

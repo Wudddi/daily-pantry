@@ -10,7 +10,7 @@ import { readFoodPlanEditContext } from '../lib/diet-edit-read.mjs';
 
 const NOW = '2026-10-20T20:00:00Z';
 const unknown = { kcal: null, protein: null, carbs: null, fat: null };
-const basis = (values, unit = 'g', source = 'label') => ({ basisAmount: 100, basisUnit: unit, ...values, source, sourceNote: '', sourceText: source === 'unknown' ? '' : '明确的标签或估算依据' });
+const basis = (values, unit = 'g', source = 'label') => ({ basisAmount: 100, basisUnit: unit, ...values, source, sourceNote: '', sourceText: source === 'unknown' ? '' : "Explicit label or estimate provenance" });
 function item(id, category, unit, nutrition) {
   return validateItem({ id, name: id, category, unit, quantity: 1000, nutrition }, NOW);
 }
@@ -24,14 +24,14 @@ function fixture() {
     item('pasta', 'staple', 'g', basis(unknown, 'g', 'unknown')),
     item('fish-oil', 'supplement', '粒', { ...basis({ kcal: 10, protein: null, carbs: null, fat: null }, '粒'), basisAmount: 1 }),
   ] };
-  state = mutate(state, 'save_meal_plan_draft', { plan: { id: 'day', date: '2026-10-20', title: '当天最终菜单', meals: [
-    { id: 'breakfast', slot: 'breakfast', title: '早餐', plannedItems: [{ id: 'breakfast-food', itemId: 'breakfast', quantity: 150, unit: 'g' }] },
-    { id: 'dinner', slot: 'dinner', title: '晚餐', plannedItems: [{ id: 'bagel-plan', itemId: 'bagel', quantity: 100, unit: 'g' }, { id: 'pasta-plan', itemId: 'pasta', quantity: 110, unit: 'g' }] },
+  state = mutate(state, 'save_meal_plan_draft', { plan: { id: 'day', date: '2026-10-20', title: "Final daily menu", meals: [
+    { id: 'breakfast', slot: 'breakfast', title: "Breakfast", plannedItems: [{ id: 'breakfast-food', itemId: 'breakfast', quantity: 150, unit: 'g' }] },
+    { id: 'dinner', slot: 'dinner', title: "Dinner", plannedItems: [{ id: 'bagel-plan', itemId: 'bagel', quantity: 100, unit: 'g' }, { id: 'pasta-plan', itemId: 'pasta', quantity: 110, unit: 'g' }] },
   ], supplementDoses: [{ id: 'oil', itemId: 'fish-oil', plannedQuantity: 1, unit: '粒' }] } });
   state = mutate(state, 'commit_meal_plan', { planId: 'day', confirmed: true });
-  return mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'complete', actualTime: '19:20', sourceText: '实际吃了贝果，意面没吃', entries: [
-    { id: 'actual-bagel', itemId: 'bagel', quantity: 100, unit: 'g', sourceText: '实际贝果100g' },
-    { id: 'actual-pasta', itemId: 'pasta', quantity: 0, unit: 'g', sourceText: '明确未吃意面' },
+  return mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'complete', actualTime: '19:20', sourceText: "Actually ate the bagel, not the pasta", entries: [
+    { id: 'actual-bagel', itemId: 'bagel', quantity: 100, unit: 'g', sourceText: "Actual bagel: 100 g" },
+    { id: 'actual-pasta', itemId: 'pasta', quantity: 0, unit: 'g', sourceText: "Explicitly did not eat pasta" },
   ] });
 }
 const daily = state => resolveDietDays(state.plans, [])[0];
@@ -49,7 +49,7 @@ test('corrected completed actual snapshot naturally clears food partial in daily
   assert.equal(keyed(previousDay).kcal.missing, 1, 'zero pasta is already known zero even with unknown nutrients');
   const after = mutate(before, 'record_meal_intake', { planId: 'day', mealId: 'dinner', nutritionCorrections: [{
     entryId: 'actual-bagel', nutrition: basis({ kcal: 250, protein: 20, carbs: 40, fat: 5 }, 'g', 'estimate'),
-    sourceText: '为已吃的贝果补充明确的每100g营养估值，份量与事实不变',
+    sourceText: "Add sourced nutrition per 100 g for the eaten bagel, preserving quantity and facts",
   }] });
   const current = daily(after), values = keyed(current), calendarDay = calendarSource(current);
   assert.equal(current.partial, false);
@@ -70,7 +70,7 @@ test('corrected completed actual snapshot naturally clears food partial in daily
   const selected = [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].map(match => match[0]).find(button => button.includes('aria-pressed="true"'));
   assert.ok(selected);
   assert.match(selected, /560/);
-  assert.doesNotMatch(selected, /待补齐/);
+  assert.doesNotMatch(selected, /Incomplete/);
   const zeroBefore = before.plans[0].meals[1].actualEntries[1], zeroAfter = after.plans[0].meals[1].actualEntries[1];
   assert.deepEqual(zeroAfter, zeroBefore);
   assert.equal(zeroAfter.quantity, 0);

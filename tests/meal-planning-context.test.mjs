@@ -14,7 +14,7 @@ function health(extra = {}) { return { schemaVersion: 1, revision: 8, updatedAt:
 const nutrition = { basisAmount: 100, basisUnit: 'g', kcal: 120, protein: 10, carbs: null, fat: 3, source: 'estimate', sourceText: 'LABEL_SECRET'.repeat(500) };
 function plan(patch = {}) { return { id: 'today', date, format: 'meals_v1', title: '当天菜单', status: 'reserved', intakeBasis: 'confirmed_daily_plan', inventoryAccounting: 'settled',
   notes: 'PLAN_NOTES_SECRET'.repeat(500), createdAt: at, updatedAt: at,
-  meals: [{ id: 'lunch', slot: 'lunch', title: '午餐', state: 'reserved', sourceText: 'MEAL_SOURCE_SECRET', reportHistory: [], actualEntries: [], plannedItems: [{ id: 'food', itemId: null, name: '食物', quantity: 100, unit: 'g', nutritionSnapshot: { name: '食物', unit: 'g', gramsPerUnit: null, nutrition } }] }],
+  meals: [{ id: 'lunch', slot: 'lunch', title: "Lunch", state: 'reserved', sourceText: 'MEAL_SOURCE_SECRET', reportHistory: [], actualEntries: [], plannedItems: [{ id: 'food', itemId: null, name: "Food", quantity: 100, unit: 'g', nutritionSnapshot: { name: "Food", unit: 'g', gramsPerUnit: null, nutrition } }] }],
   supplementDoses: [], ...patch }; }
 const inventory = (plans = [plan()], extra = {}) => ({ schemaVersion: 1, revision: 21, items: [], preferences: ['习惯完整'], events: [], plans, ...extra });
 
@@ -32,7 +32,7 @@ test('meal health brief keeps numeric trends, latest real date and reported work
 });
 
 test('missing body weights and optional effort scores remain unknown rather than zero', () => {
-  const result = mealPlanningHealthContext(health({ measurements: [], sessions: [session({ exercises: [{ name: '动作', sets: [{ weight: 10, reps: 8, notes: '' }] }] })] }));
+  const result = mealPlanningHealthContext(health({ measurements: [], sessions: [session({ exercises: [{ name: "Exercise", sets: [{ weight: 10, reps: 8, notes: '' }] }] })] }));
   assert.equal(result.summary.latest, null); assert.equal(result.summary.latest7Days.averageKg, null);
   assert.equal(result.recentCompletedSessions[0].knownRpeMax, null); assert.equal(result.recentCompletedSessions[0].knownRirMin, null);
   assert.throws(() => mealPlanningHealthContext({ revision: 2, measurements: [] }));
@@ -71,5 +71,5 @@ test('history-only nutrition carries its non-inventory identity and cannot becom
 
 test('a large ambiguous day keeps all native IDs or fails explicitly, never silently chooses one', () => {
   const records = Array.from({ length: 120 }, (_, index) => plan({ id: 'duplicate-' + index }));
-  assert.throws(() => mealPlanningDietContext(inventory(records), date), /身份过多/);
+  assert.throws(() => mealPlanningDietContext(inventory(records), date), /Too many menu identities exist for this day\. Read the original records by date to review them\./);
 });

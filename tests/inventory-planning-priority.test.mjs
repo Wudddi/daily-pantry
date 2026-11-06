@@ -9,11 +9,11 @@ const item = (id, extra = {}) => validateItem({ id, name: id, category: 'prepare
   nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 200, protein: 30, carbs: 1, fat: 8, source: 'estimate' }, ...extra }, AT);
 const menu = (date, ids, extra = {}) => ({ id: `menu-${date}`, format: 'meals_v1', date, status: 'reserved',
   meals: [{ id: 'lunch', state: 'reserved', plannedItems: ids.map((itemId, index) => ({ id: `line-${index}`, itemId, quantity: 1 })) }], ...extra });
-const state = (items, plans = []) => ({ schemaVersion: 1, revision: 8, updatedAt: AT, items, plans, events: [], operationIds: [], preferences: ['合成示例：每份示例午餐使用一个示例主菜。'] });
+const state = (items, plans = []) => ({ schemaVersion: 1, revision: 8, updatedAt: AT, items, plans, events: [], operationIds: [], preferences: ['整袋备餐，甜点无需每天吃。'] });
 const freeze = value => { if (value && typeof value === 'object') { Object.freeze(value); for (const v of Object.values(value)) freeze(v); } return value; };
 
 test('attention uses only explicit current facts and keeps supplements and condiments outside meal rotation', () => {
-  const items = [item('ordinary'), item('priority', { priority: true }), item('tail', { name: '示例备餐145g尾袋' }),
+  const items = [item('ordinary'), item('priority', { priority: true }), item('tail', { name: '新卤牛肉127g尾袋' }),
     item('last', { quantity: 1 }), item('fresh', { category: 'vegetable', unit: 'g', quantity: 300, location: '冷藏' }),
     item('frozen', { category: 'vegetable', unit: 'g', quantity: 300, location: '冷冻' }),
     item('negative', { name: '非尾袋', notes: '旧尾袋已吃完，新批次尚未开封' }),
@@ -32,7 +32,18 @@ test('attention uses only explicit current facts and keeps supplements and condi
   for (const id of ['negative', 'frozen']) assert.equal(priorities.metadata(items.find(v => v.id === id)).freshnessHint.group, 'frozen_flexible');
   assert.deepEqual(priorities.coverage.availableRoleTotals, { food: 7, condiment: 1, supplement: 1 });
   assert.equal(inventoryPlanningRole(items.find(v => v.id === 'fish-oil')), 'supplement');
-  assert.match(PLANNING_PRIORITY_RULES.join(''), /不是强制菜单或平均分配配额/);
+  assert.match(PLANNING_PRIORITY_RULES.join(''), /tie breakers, never quotas or forced pairings/);
+});
+
+test('English tail-bag names retain explicit-name priority while negatives and legacy Chinese aliases remain compatible', () => {
+  const positive = ['Beef tail bag (127 g)', 'Beef tail pack', '牛肉尾袋'];
+  const negative = ['Beef, not a tail bag', 'Non-tail bag of beef', 'Beef tail bagel', '不是尾袋'];
+  for (const [index, name] of [...positive, ...negative].entries()) {
+    const food = item('tail-language-' + index, { name, quantity: 4 });
+    const priorities = inventoryPlanningPriorities({ items: [food] }, TARGET);
+    assert.equal(priorities.metadata(food).planningHints?.includes('named_tail_bag') ?? false,
+      index < positive.length, name);
+  }
 });
 
 test('rotation counts distinct confirmed-menu days and remains weaker than explicit priorities without claiming actual intake', () => {
@@ -84,7 +95,7 @@ test('unknown optional dessert nutrients remain usable candidates without obstru
   assert.equal(pastry.nutrition.kcal, 420);
   assert.equal(pastry.nutrition.carbs, null);
   assert.equal(result.candidateCoverage.availableFoodCategoryTotals.dessert, 1);
-  assert.match(result.selectionRules.join(''), /营养待补不阻碍/);
+  assert.match(result.selectionRules.join(''), /Missing nutrition does not block other stock/);
   assert.equal(JSON.stringify(source), before);
 });
 
@@ -116,17 +127,17 @@ test('list uses Toronto day at midnight UTC and refuses invalid priority referen
   const result = readPlanningInventory(source, {}, '2026-10-21T00:30:00Z');
   assert.equal(result.recentMenuCoverage.toExclusive, '2026-10-20');
   assert.deepEqual(result.recentMenuCoverage.observedConfirmedMenuDates, ['2026-10-19']);
-  for (const bad of ['bad', '2026-13-01', '2026-02-30', '', null]) assert.throws(() => inventoryPlanningPriorities(source, bad), /有效的/);
+  for (const bad of ['bad', '2026-13-01', '2026-02-30', '', null]) assert.throws(() => inventoryPlanningPriorities(source, bad), /valid YYYY-MM-DD date/);
 });
 
 test('compact inventory preserves verified product aliases without changing IDs, nutrition or historical references', () => {
-  const source = state([item('canonical-yogurt', { name: 'PC 0% Greek Yogurt 1kg', category: 'protein', unit: 'g', quantity: 1000, aliases: ['0%希腊酸奶'] }),
-    item('old-yogurt', { name: '0%希腊酸奶', category: 'protein', unit: 'g', quantity: 0, status: 'archived' })],
+  const source = state([item('canonical-yogurt', { name: 'PC 0% Greek Yogurt 1kg', category: 'protein', unit: 'g', quantity: 1000, aliases: ["0% Greek yogurt"] }),
+    item('old-yogurt', { name: "0% Greek yogurt", category: 'protein', unit: 'g', quantity: 0, status: 'archived' })],
   [menu('2026-10-19', ['old-yogurt'])]);
   const before = JSON.stringify(source); freeze(source);
   const result = readPlanningInventory(source, {}, AT);
   const canonical = result.items.find(item => item.id === 'canonical-yogurt');
-  assert.deepEqual(canonical.aliases, ['0%希腊酸奶']);
+  assert.deepEqual(canonical.aliases, ["0% Greek yogurt"]);
   assert.equal(canonical.recentAcceptedMenuDays, 0, 'aliases do not rewrite history or transfer other item IDs');
   assert.ok(result.items.some(item => item.id === 'old-yogurt' && item.status === 'archived'));
   canonical.aliases.push('响应副本');
@@ -182,7 +193,7 @@ test('best-before and opening facts never invent a safety deadline or make old f
   assert.ok(hint.basis.includes('best_before_quality_date_passed'));
   assert.equal(Object.hasOwn(hint, 'safeUntil'), false);
   assert.equal(dry.status, 'available', 'quality hints never rewrite stock safety/status');
-  assert.match(PLANNING_PRIORITY_RULES.join(''), /均不是食物安全保证/);
+  assert.match(PLANNING_PRIORITY_RULES.join(''), /Neither guarantees safety/);
 });
 
 test('freshness coverage uses the exact available food classification and excludes supplement, condiments and unavailable stock', () => {
@@ -201,7 +212,7 @@ test('freshness coverage uses the exact available food classification and exclud
 test('malformed raw freshness fails visibly while ordinary legacy raw items need no migration or evidence guessing', () => {
   const ordinary = item('legacy');
   assert.equal(inventoryPlanningPriorities({ items: [ordinary] }, TARGET).metadata(ordinary).freshnessHint.group, 'frozen_flexible');
-  for (const freshness of [null, {}, { sourceText: '' }, { opened: 'yes', sourceText: '用户原话' }, { bestBeforeDate: '2026-02-30', sourceText: '标签原话' }, { safeUntil: TARGET, sourceText: '无支持的额外字段' }]) {
+  for (const freshness of [null, {}, { sourceText: '' }, { opened: 'yes', sourceText: "User report" }, { bestBeforeDate: '2026-02-30', sourceText: '标签原话' }, { safeUntil: TARGET, sourceText: '无支持的额外字段' }]) {
     assert.throws(() => inventoryPlanningPriorities({ items: [{ ...ordinary, freshness }] }, TARGET), error => error.status === 503 && error.code === 'INVALID_FRESHNESS_FACTS');
   }
 });

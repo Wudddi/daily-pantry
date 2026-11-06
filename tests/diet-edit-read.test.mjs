@@ -12,11 +12,11 @@ function item(id, category, unit, quantity, kcal, basisAmount = 1) {
       sourceText: 'PRIVATE full label never returned' } }, NOW);
 }
 function input() {
-  return { id: 'day', date: '2026-10-19', title: '全天原菜单', meals: [
-    { id: 'breakfast', slot: 'breakfast', title: '早餐', plannedItems: [{ id: 'breakfast-a', itemId: 'a', quantity: 1 }] },
-    { id: 'lunch', slot: 'lunch', title: '午餐', plannedItems: [{ id: 'lunch-a', itemId: 'a', quantity: 2 }, { id: 'lunch-mushroom', itemId: 'mushroom', quantity: 200 }] },
-    { id: 'dinner', slot: 'dinner', title: '晚餐', plannedItems: [{ id: 'dinner-b', itemId: 'b', quantity: 3 },
-      { id: 'sauce', itemId: null, name: '常备酱', quantity: 15, unit: 'g', nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 120,
+  return { id: 'day', date: '2026-10-19', title: "Original daily menu", meals: [
+    { id: 'breakfast', slot: 'breakfast', title: "Breakfast", plannedItems: [{ id: 'breakfast-a', itemId: 'a', quantity: 1 }] },
+    { id: 'lunch', slot: 'lunch', title: "Lunch", plannedItems: [{ id: 'lunch-a', itemId: 'a', quantity: 2 }, { id: 'lunch-mushroom', itemId: 'mushroom', quantity: 200 }] },
+    { id: 'dinner', slot: 'dinner', title: "Dinner", plannedItems: [{ id: 'dinner-b', itemId: 'b', quantity: 3 },
+      { id: 'sauce', itemId: null, name: "Pantry sauce", quantity: 15, unit: 'g', nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 120,
         protein: 0, carbs: 0, fat: 0, source: 'estimate', sourceText: 'PRIVATE sauce estimate original' } }] },
   ], supplementDoses: Array.from({ length: 15 }, (_, index) => ({ id: `dose-${index}`, itemId: 'fish', plannedQuantity: 1,
     timingSlot: 'breakfast', requirement: 'daily', instruction: 'PRIVATE 15-dose timetable not needed for editing lunch' })) };
@@ -35,20 +35,37 @@ function fixture() {
 }
 const kcal = values => values.find(total => total.key === 'kcal');
 
+test('Chat edit context returns detached recipe groups and stable ingredient references without changing nutrition', () => {
+  const before = fixture();
+  const state = mutate(before, 'patch_meal_plan', { planId: 'day', mode: 'draft', mealPatches: [{ id: 'lunch',
+    recipeGroups: [{ id: 'lunch-dish', name: "Mushroom main dish", lineIds: ['lunch-a', 'lunch-mushroom'] }] }] });
+  const result = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'] });
+  const baseline = readFoodPlanEditContext(before, { planId: 'day', mealIds: ['lunch'] });
+  assert.deepEqual(result.meals[0].recipeGroups.map(({ id, name, lineIds }) => ({ id, name, lineIds })), [{ id: 'lunch-dish', name: "Mushroom main dish", lineIds: ['lunch-a', 'lunch-mushroom'] }]);
+  assert.equal(result.meals[0].recipeGroups[0].portion, 1);
+  assert.equal(result.meals[0].recipeGroups[0].legacyBasis, true);
+  assert.equal(typeof result.meals[0].recipeGroups[0].editFingerprint, 'string');
+  assert.deepEqual(result.dailyNutritionSummary, baseline.dailyNutritionSummary);
+  assert.deepEqual(result.meals[0].plannedItems, baseline.meals[0].plannedItems);
+  result.meals[0].recipeGroups[0].lineIds.pop();
+  assert.equal(state.plans[0].meals[1].recipeGroups[0].lineIds.length, 2);
+  assert.deepEqual(state.items, before.items);
+});
+
 test('replacement search follows verified aliases and current soft priorities while explicit choices keep first place', () => {
   const state = fixture();
-  const yogurt = { ...item('pc-yogurt', 'protein', 'g', 1000, 60, 100), name: 'PC Plain Greek Yogurt 0% M.F.（原味无脂希腊酸奶1kg）', aliases: ['0%希腊酸奶'] };
-  const regular = { ...item('beef-regular', 'prepared', '袋', 5, 250), name: '牛肉标准袋' };
-  const tail = { ...item('beef-tail', 'prepared', '袋', 1, 240), name: '牛肉127g尾袋' };
+  const yogurt = { ...item('pc-yogurt', 'protein', 'g', 1000, 60, 100), name: 'PC Plain Greek Yogurt 0% M.F.（原味无脂希腊酸奶1kg）', aliases: ["0% Greek yogurt"] };
+  const regular = { ...item('beef-regular', 'prepared', '袋', 5, 250), name: "Standard bag of beef" };
+  const tail = { ...item('beef-tail', 'prepared', '袋', 1, 240), name: "Beef tail bag (127 g)" };
   state.items.push(yogurt, regular, tail);
   const before = structuredClone(state);
-  const yogurtResult = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'], foodQuery: '0%希腊酸奶' });
+  const yogurtResult = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'], foodQuery: "0% Greek yogurt" });
   const row = yogurtResult.inventoryCandidates.items.find(item => item.id === yogurt.id);
   assert.equal(row.name, yogurt.name);
-  assert.deepEqual(row.aliases, ['0%希腊酸奶']);
-  row.aliases.push('只改响应');
+  assert.deepEqual(row.aliases, ["0% Greek yogurt"]);
+  row.aliases.push("Change response only");
   assert.deepEqual(state, before);
-  const result = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'], candidateItemIds: ['tomato'], foodQuery: '牛肉' });
+  const result = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'], candidateItemIds: ['tomato'], foodQuery: "Beef" });
   assert.deepEqual(result.inventoryCandidates.items.slice(0, 3).map(item => item.id), ['tomato', 'beef-tail', 'beef-regular']);
   assert.deepEqual(result.inventoryCandidates.items[1].planningHints, ['named_tail_bag', 'last_prepared_bag']);
   assert.equal(result.otherMeals.preserve, true);
@@ -91,7 +108,7 @@ test('focused edits receive every latest preference from the same revision witho
   let state = fixture();
   state = mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'lunch', mode: 'complete', matchesPlannedFood: true,
     sourceText: 'PRIVATE completed lunch original' });
-  state = mutate(state, 'preferences', { preferences: ['优先整袋主餐，不强求每天吃遍库存。', '一天甜点最多两份；也可以零份。'] });
+  state = mutate(state, 'preferences', { preferences: ["Prefer whole prepared bags; do not require using every inventory item each day.", "At most two dessert portions daily; zero is fine."] });
   const before = structuredClone(state);
   const first = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'], expectedRevision: state.revision });
   assert.deepEqual(first.preferences, state.preferences);
@@ -108,7 +125,7 @@ test('focused edits receive every latest preference from the same revision witho
   first.preferences[0] = 'caller-local change';
   assert.deepEqual(state, before, 'returned preferences must not alias stored preferences');
 
-  const latest = mutate(state, 'preferences', { preferences: ['主餐优先整袋；当前不想吃甜点。'] });
+  const latest = mutate(state, 'preferences', { preferences: ["Prefer whole prepared bags; no dessert wanted currently."] });
   const result = readFoodPlanEditContext(latest, { planId: 'day', mealIds: ['lunch'], expectedRevision: latest.revision });
   assert.deepEqual(result.preferences, latest.preferences);
   assert.equal(result.preferencesCount, 1);
@@ -144,12 +161,12 @@ test('complete escaped preferences have their own measured budget and never disp
 });
 
 test('unreadable preferences and oversized actual facts reject instead of claiming complete empty or truncated context', () => {
-  for (const bad of [undefined, null, '旧习惯原文', ['正常习惯', null]]) {
+  for (const bad of [undefined, null, "Original former preference", ["Regular preference", null]]) {
     const state = fixture(); state.preferences = bad;
     assert.throws(() => readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'] }), error => error.status === 503 && error.code === 'PREFERENCES_UNAVAILABLE');
   }
   const state = fixture(), meal = state.plans[0].meals[1];
-  state.preferences = ['必须完整保留的长期习惯。'.repeat(20)];
+  state.preferences = ['Retain the complete habit.'.repeat(12)];
   meal.state = 'completed';
   meal.actualEntries = Array.from({ length: 100 }, (_, index) => ({ id: `actual-${index}`, itemId: 'a',
     name: '\u0000'.repeat(200), quantity: 1, unit: '袋', sourceText: 'PRIVATE original facts',
@@ -257,7 +274,7 @@ test('candidate query returns matched foods only, caps twelve and retains explic
 
 test('unknown balance and a changed baseline remain explicit for an actual debit in the latest candidate stock', () => {
   const state = mutate(fixture(), 'record_meal_intake', { planId: 'day', mealId: 'lunch', mode: 'complete', matchesPlannedFood: true,
-    sourceText: '午餐实际吃完两袋主餐和200g蘑菇' });
+    sourceText: "Actually finished two main-dish bags and 200 g mushrooms at lunch" });
   state.items.find(item => item.id === 'a').quantity = null;
   state.items.find(item => item.id === 'a').quantityBaselineToken = 'new-absolute-recount';
   const result = readFoodPlanEditContext(state, { planId: 'day', mealIds: ['lunch'] });

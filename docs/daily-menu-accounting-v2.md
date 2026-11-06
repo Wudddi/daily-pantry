@@ -1,51 +1,79 @@
-# 每日菜单与实际结算修复（2026-10-22）
+# Daily menus, actual intake and stock accounting
 
-## 根因
+## Original coupling and the current contract
 
-旧 `set_daily_supplement_check` 将已有食物草稿转换成 `reserved + supplementOnly`，把顶层 `meals` 清空、原四餐保存在 `.draft.meals`。每日汇总又过滤了 `supplementOnly`，因此菜单仍存在，却无法正常显示。旧 `commit_meal_plan` 同时表示采用菜单和预扣库存，使计划、实际与账务耦合。
+The former `set_daily_supplement_check` action converted an existing food draft to `reserved + supplementOnly`, cleared its top-level `meals`, and kept the four meals under `.draft.meals`. The daily summary then filtered out `supplementOnly`, hiding a menu that still existed. The former `commit_meal_plan` also combined adopting a menu with reserving stock. The current contract separates menus, reported facts and accounting.
 
-## 新规则
-
-| 操作 | 当前菜单 | 实际事实 | 库存 |
+| Operation | Current menu | Actual facts | Inventory |
 | --- | --- | --- | --- |
-| `save_food_plan_draft` | 立即保存、显示和参与计划营养统计 | 保留 | 不变 |
-| `patch_food_plan` / `revise_food_plan` | 只合并指定稳定 ID 的计划字段 | 保留 | 不变 |
-| `confirm_daily_food_plan` | 兼容旧调用，仅表示采用 | 不冒充吃完 | 不变 |
-| `record_meal_intake` | 保留当前计划用于对照 | 记录已吃、完成及真实数量 | 实际量与旧已结算量之差 |
-| 实际 `correct` | 保留 | 原 entry ID，保留更正前审计 | 仅调整差量 |
-| 补剂勾选 / 实际补剂报告 | 保留餐次、日期状态、食物账和待核问题 | 独立保存该剂次 | 仅补剂差量 |
-| 读取、日期切换、刷新 | 只读 | 不新增 | 不变 |
+| `save_food_plan_draft` | Save and display immediately; include in planned nutrition | Preserve | Unchanged |
+| `patch_food_plan` / `revise_food_plan` | Merge only explicitly supplied planned fields at stable IDs | Preserve | Unchanged |
+| `confirm_daily_food_plan` | Compatibility action meaning adoption only | Does not imply eating | Unchanged |
+| `record_meal_intake` | Preserve the menu for comparison | Save reported foods, completion and quantities | Difference between actual target and existing settled credit |
+| Actual `correct` | Preserve | Reuse entry ID and retain the prior audit snapshot | Difference only |
+| Supplement check or intake report | Preserve meals, dates, food accounting and pending issues | Save that dose independently | Supplement difference only |
+| Read, date change or refresh | Read only | Do not create facts | Unchanged |
 
-单餐继续使用原 `mealId` 接口；晚间一次报告可提交 `record_meal_intake.meals[]`（最多 16 餐）。每个成员独立提供 `mealId`、真实内容或 `matchesPlannedFood`、完成状态和已报告时间。批量不能混入顶层单餐报告字段，也不从吃完饭推断补剂已服。
+Single-meal reports continue to use `mealId`. A whole-day report can use `record_meal_intake.meals[]`, with at most 16 meals. Each member supplies its own `mealId`, actual contents or `matchesPlannedFood`, completion and reported time. A batch cannot mix in top-level single-meal fields. Completing food never implies taking supplements.
 
-## 数据兼容性
+## Storage and compatibility
 
-本项目的运行记录保存于 **R2 的用户隔离 JSON 对象**，不是 SQL 表；`.openai/hosting.json` 的 D1 绑定仍为 `null`，`db/schema.ts` 未改动。顶层 `schemaVersion: 1` 保持不变，无 D1 迁移、全库回填或自动重算库存。
+Runtime records are **user-isolated JSON objects in R2**, not SQL rows. The D1 binding in `.openai/hosting.json` remains `null`; `db/schema.ts` is unchanged. Top-level `schemaVersion: 1` is retained. There is no D1 migration, whole-store backfill or automatic stock recalculation.
 
-新结构化菜单添加服务端字段 `foodAccounting: "actual_only"`、`supplementAccounting: "actual_only"`。客户端不能提交这些字段绕过结算。旧版 `status: "reserved"` 继续兼容读取，不能据该状态推断用户实际吃过。
+New structured menus receive server-owned `foodAccounting: "actual_only"` and `supplementAccounting: "actual_only"`. Clients cannot submit these fields to bypass settlement. Legacy `status: "reserved"` remains readable and does not establish that a meal was eaten.
 
-旧 `supplementOnly + .draft.meals` 使用共享的只读 `projectCurrentDietPlan` 合成当前视图：仅计划字段来自草稿，实际条目、完成状态、时间、报告历史和账务来自原 canonical 记录。网页、每日汇总和编辑读取采用相同规则；读取不持久化迁移。下一次明确修改时在原 ID 上保存当前计划字段，实际事实保留。
+For legacy `supplementOnly + .draft.meals` records, shared read-only `projectCurrentDietPlan` projects the current view. Only planned fields come from the draft; actual entries, completion, times, report history and accounting come from the canonical record. The website, daily summary and edit context share this rule. Reads do not persist a migration. The next explicit edit saves current planned fields under the original ID and preserves actual facts.
 
-旧版已预扣的 `accountedDebits` 不自动退款、归零或再次扣除。首次计划修改在同一记录保存 `legacyReservations`，冻结原预扣口径；后续真实进食使用原 credits 抵扣。旧平铺记录保持可读、同 ID 重试及明确取消能力，新建旧式 `commit_plan` 被拒绝，防止旧客户端继续建立预扣账。
+Existing `accountedDebits` are not automatically refunded, zeroed or charged again. The first plan edit freezes prior reservation semantics in `legacyReservations`; later actual intake uses those original credits. Legacy flat records remain readable and support same-ID retries and explicit cancellation. New legacy-style `commit_plan` calls are rejected so old clients cannot create new advance debits.
 
-## 幂等和并发
+Legacy Chinese unit and storage enum values remain accepted for stored-record compatibility. English labels are a presentation concern; they do not rewrite the inventory's physical units or the user's original records.
 
-- 同日期复用 canonical `planId`，关闭或取消后也不能换 ID 重新建一份账；`mealId`、食物行 ID、`doseId` 和实际 `entryId` 保持稳定。
-- 保留操作 ID 幂等日志、稳定实际 ID 冲突检查及 `matchesPlannedFood` 的确定性实际 ID。
-- 实际更正复用已有 entry ID，保留历史，以累计实际目标与 `accountedDebits` 的差结算。
-- R2 写入仍采用原 `expectedRevision` 和 ETag 条件写，冲突拒绝整次提交，不能部分扣账。
-- 补剂采用独立结算范围，不因打卡重新结算食物或重试食物待核问题。
+## Idempotency and concurrency
 
-## 显示及迁移风险
+- Reuse the canonical `planId` for a date, including after closing or cancelling. Do not create a new accounting identity for the same day. Keep meal, food-line, dose and actual-entry IDs stable.
+- Retain operation-ID idempotency, stable actual-ID conflict checks and deterministic IDs for `matchesPlannedFood`.
+- Actual corrections reuse an existing entry ID, retain history and settle the cumulative actual target against `accountedDebits`.
+- R2 writes use `expectedRevision` and ETag conditional writes. A conflicting submission is rejected as a whole, without partial debits.
+- Supplement accounting has its own scope. A supplement check does not resettle food or retry unresolved food accounting.
 
-当前菜单、已完成/未完成餐次、实际补剂和全天营养可同时查看。已完成餐按实际快照，未完成餐按当前菜单估算；未完成不等于没吃。补剂计划营养与实际服用状态分别标注。
+## Display and migration boundaries
 
-有冻结的可靠每单位克重时，包装单位换算成 g 显示，饮料 ml 显示为 mL；显示换算不改库存物理单位。不知道每袋净重或密度时保留原单位，不猜 g 与 mL 的换算。
+Current menus, completed and incomplete meals, actual supplements and daily nutrition can be viewed together. Completed meals use actual nutrition snapshots; incomplete meals use the current planned menu. Incomplete does not mean uneaten. Planned supplement nutrition and reported use are separate.
 
-旧余额可能含历史预扣，因此不会在发布时批量退回。重新盘点后若旧 credits 的数量基线或单位不匹配，真实报告保留、账务显示待核，不自动退款或伪造成功。这是保留旧账的兼容边界。回滚至旧版代码可能重新启用预扣语义，不宜只回退前端；应保留本版服务端规则。
+When a reliable frozen grams-per-unit value exists, package units can be presented in grams. Drink volumes are displayed in mL. Presentation conversion does not change the underlying stock unit. Without a known package weight or density, retain the original unit rather than inventing a g/mL conversion.
 
-## 验证范围
+Old balances may include historical reservations, so deployment does not trigger batch refunds. If a later physical count changes a credit's quantity baseline or unit, preserve the actual report and mark the affected accounting for review. Do not refund automatically or report success without evidence. Rolling back only the frontend could reintroduce advance-debit semantics; retain the server contract.
 
-自动化回归覆盖：四餐草稿立即显示；补剂打卡后菜单及 ID 保留；保存、采用和改餐不扣库存；单餐及全天实际报告；重试不重扣；实际差量更正；独立补剂；旧嵌套草稿；旧 credits；盘点冲突；日期序列化和读取；前端餐次状态；g/mL 显示。测试夹具使用合成数据，明确旧版 fixture 与新建菜单的不同语义。
+## Verification
 
-生产记录仅作读取核对，不写测试数据、不回放历史消耗。生产发布只更新应用代码。
+Synthetic regression fixtures cover immediate four-meal draft display; menu and ID preservation after supplement checks; stock-neutral saves, adoption and edits; single-meal and whole-day actual reports; retry safety; differential corrections; independent supplements; nested legacy drafts; old credits; recount conflicts; dates and reads; frontend meal states; and g/mL display. Legacy fixtures explicitly exercise their historical contract rather than pretending to be newly created menus.
+
+Production records may be read for verification. Tests do not insert fabricated production meals or replay historical consumption. An application release changes code, not recorded intake.
+
+## Day-end differences after a physical count (2026-11-01)
+
+Day-end settlement retains stable date and meal IDs. It reads the latest saved menu before first settlement, gives explicit actual reports priority, and credits existing `accountedDebits`. If 60 g of actual intake is already settled and the final target is 100 g, only the remaining 40 g is charged. Editing the menu itself is stock-neutral; repeating day-end settlement does not debit again. Personal checkmarks and supplement intake remain independent.
+
+`quantityBaselineAt` and `quantityBaselineSource` record physical counts, restocking or explicit balance calibration separately. Ordinary intake, nutrition-label and note edits do not advance that boundary. Historical records resolve a baseline only when `quantityBaselineToken` exactly matches its inventory event or calibration audit; do not infer counts from `confirmedAt`, planned times or later entry times. There is no global backfill or historical re-debit.
+
+Historical automatic assumed consumption cannot cross a later confirmed physical balance. If same-day automatic consumption cannot be ordered against the count, only that ingredient waits for review. It is not charged to new stock and does not generate a fabricated shortage. Existing zero-difference credit remains intact. Ordinary same-day actual reports, actual corrections on a matching baseline and established rules after an explicit calibration continue to work. An unknown coverage issue affects only its ingredient; independent settleable ingredients proceed.
+
+This repair does not change `dailyMenuSettlementPolicy.enabled`. A user-disabled policy remains disabled after deployment.
+
+## Named dishes and expandable recipes (2026-11-02)
+
+A meal can save `recipeGroups: [{ id, name, lineIds }]`, for example banana chocolate brownies or Basque cheesecake. `lineIds` reference only that meal's `plannedItems.id`. Ingredient lines, quantities, physical units and nutrition snapshots remain independent; a group is not another inventory or actual-intake item. Ungrouped fruit and drinks remain separate. Grouped and ungrouped portions of the same SKU are not merged for display.
+
+Chat can supply meal `recipeGroups` when creating a menu. A targeted `patch_food_plan.mealPatches[].recipeGroups` replaces the meal's small group array. Omission preserves groups; `[]` clears them. Group IDs remain stable, and each ingredient line belongs to at most one group. Removing an ingredient prunes inherited references and removes empty groups. Explicit references to missing or other-meal lines reject the entire edit.
+
+The checklist, overview and nutrition details show expandable recipe groups. Checking a dish only marks its ingredient reminders; it does not report eating or debit stock. Completed meals group actual foods only through reliable original-line associations. Ambiguous actual foods remain separate. Group metadata edits preserve actuals, nutrition, stock, settled credits, intake-draft fingerprints and automatic-settlement settings.
+
+## Whole-recipe portions, remaining-food transfers and inventory additions (2026-11-06)
+
+`scale_recipe_group` updates all group ingredients using an absolute `targetPortion`. Public `portion` is the current number of portions; server-owned `baseQuantities` stores the one-portion basis and cannot be supplied by clients. Returning from half a portion to a whole portion restores that basis. A manual ingredient edit rebuilds its basis instead of repeatedly multiplying already-halved quantities. Legacy groups treat their saved recipe as one portion. When a saved recipe is explicitly known to already be a half portion, setting only `portion: 0.5` calibrates its basis without changing quantities.
+
+`move_recipe_group` applies one fraction to each ingredient's uneaten remainder. It preserves eaten source lines and creates an independent same-named group with stable ingredient lines in the destination meal. It does not merge same-SKU single items. Daily ingredient totals and nutrition snapshots are conserved. Scaling and transfers edit only plans, retaining actuals, credits, personal checkmarks and stock. Unclear actual associations affect only the relevant group. An existing intake draft is retained and may require review after a recipe change.
+
+Each meal's **Add from inventory** picker uses `add_food_to_meal` to append an available planned food line. It uses the selected food's inventory unit and nutrition snapshot. With a verified grams-per-unit value the UI accepts grams; mL is never treated as g. A valid saved intake draft is version-checked and only its menu baseline is rebased. Its entered consumption, transfers and completion checkmarks are retained, not submitted. A draft that was already stale remains stale. The advanced editor saves local inputs before opening the picker. Additions to completed meals serve as planned comparison; actual nutrition still uses actual entries.
+
+All three actions reuse operation-ID idempotency and revision-checked writes. Recipe transfers retain stable destination IDs; additions retain a stable new line ID. None of these operations changes the automatic-settlement switch.

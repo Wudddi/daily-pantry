@@ -15,7 +15,7 @@ const stub = dataUrl('export default function Stub(){return null}');
 let code = ts.transpileModule(source + '\nexport { WeightSummary, WeightComparisons, MeasurementEditor };', {
   fileName: 'health-records.tsx', compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText.replace(/import\s+["']\.\/health\.css["'];?/g, '');
-code = code.replace(/from\s+(["'])([^"']+)\1/g, (_match, _quote, specifier) => {
+code = code.replace(/(?<=^import[^\n]*)from\s+(["'])([^"']+)\1/gm, (_match, _quote, specifier) => {
   const url = specifier === 'react' ? hooks : specifier.startsWith('@/lib/')
     ? new URL('../lib/' + specifier.slice('@/lib/'.length), import.meta.url).href
     : specifier.startsWith('./') ? stub : import.meta.resolve(specifier);
@@ -24,7 +24,7 @@ code = code.replace(/from\s+(["'])([^"']+)\1/g, (_match, _quote, specifier) => {
 const { WeightSummary, WeightComparisons, MeasurementEditor } = await import(dataUrl(code));
 function measurement(patch = {}) {
   return { id: 'weight', date: '2026-10-20', weightKg: 72.8, waistCm: null, bodyFatPct: null,
-    archived: false, condition: '', notes: '原话保留', sourceText: '', source: 'manual',
+    archived: false, condition: '', notes: "Preserve original text", sourceText: '', source: 'manual',
     createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z', ...patch };
 }
 const status = { stale: false, saving: false, conflict: false, loading: false, error: '', onRefresh() {}, onClose() {} };
@@ -36,12 +36,12 @@ test('sparse comparison shows actual endpoints and coverage without inventing a 
     measurement({ id: 'earlier', date: '2026-10-15', weightKg: 73.8 }), measurement(),
   ]);
   const html = renderToStaticMarkup(React.createElement(WeightComparisons, { progress }));
-  assert.match(html, /截至 2026-10-20/);
+  assert.match(html, /Through 2026-10-20/);
   assert.match(html, /2026-10-15 · 73.8 → 2026-10-20 · 72.8 kg/);
-  assert.match(html, /本期 2\/7 天 · 前期 2\/7 天/);
-  assert.match(html, /首末实测变化/);
+  assert.match(html, /Current: 2\/7 days · Previous: 2\/7 days/);
+  assert.match(html, /First-to-last change/);
   const summary = renderToStaticMarkup(React.createElement(WeightSummary, { progress }));
-  assert.match(summary, /73.3/); assert.match(summary, /覆盖 2\/7 天/);
+  assert.match(summary, /73.3/); assert.match(summary, /Coverage: 2\/7 days/);
 });
 
 test('editing a legacy body-fat-only record hides that input but preserves its saved value and evidence', async () => {
@@ -49,8 +49,8 @@ test('editing a legacy body-fat-only record hides that input but preserves its s
   let saved;
   const element = MeasurementEditor({ ...status, initial: original, onSave: async record => { saved = record; } });
   const html = renderToStaticMarkup(element);
-  assert.doesNotMatch(html, /体脂率|19\.2/);
-  assert.match(html, /腰围/); assert.match(html, /原话保留/);
+  assert.doesNotMatch(html, /(?:Reuse this meal's estimate per can: 80 kcal, P19\.2\/C0\/F0; do not infer drained mass|Body fat \(%\)|Record at least one of weight, waist, or body fat\. Unknown values do not need to be guessed\.)/);
+  assert.match(html, /Waist/); assert.match(html, /Preserve original text/);
   await element.props.children.props.onSubmit({ preventDefault() {} });
   assert.deepEqual(saved, original);
   assert.equal(saved.bodyFatPct, 19.2);

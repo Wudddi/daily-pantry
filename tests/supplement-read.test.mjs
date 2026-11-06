@@ -7,7 +7,7 @@ import { planningSnapshot, validateItem } from '../lib/inventory.mjs';
 
 const NOW = '2026-10-19T12:00:00Z';
 function snapshot(known = true) {
-  return { name: '鱼油', unit: '粒', gramsPerUnit: null, ingredients: '', supplementFacts: '',
+  return { name: "Fish oil", unit: '粒', gramsPerUnit: null, ingredients: '', supplementFacts: '',
     nutrition: { basisAmount: 1, basisUnit: '粒', kcal: known ? 10 : null, protein: known ? 0 : null,
       carbs: known ? 0 : null, fat: known ? 1 : null, source: known ? 'label' : 'unknown' } };
 }
@@ -19,7 +19,7 @@ function plan(id, date, doses, extra = {}) {
     meals: [], supplementDoses: doses, updatedAt: NOW, ...extra };
 }
 function state(plans = []) {
-  return { schemaVersion: 1, revision: 0, updatedAt: NOW, items: [validateItem({ id: 'fish', name: '鱼油',
+  return { schemaVersion: 1, revision: 0, updatedAt: NOW, items: [validateItem({ id: 'fish', name: "Fish oil",
     category: 'supplement', quantity: null, unit: '粒', status: 'available' }, NOW)],
     plans, preferences: [], events: [], operationIds: [] };
 }
@@ -44,7 +44,7 @@ test('unscheduled optional and label-pending candidates do not create planned nu
 });
 
 test('an optional actual dose counts exactly once and an unknown actual stays unknown', () => {
-  const actual = { id: 'actual-fish', itemId: 'fish', name: '鱼油', quantity: 2, unit: '粒', nutritionSnapshot: snapshot() };
+  const actual = { id: 'actual-fish', itemId: 'fish', name: "Fish oil", quantity: 2, unit: '粒', nutritionSnapshot: snapshot() };
   for (const state of ['reserved', 'in_progress', 'completed', 'cancelled']) {
     const d = dose({ requirement: 'optional', scheduled: false, actualEntries: [actual], state });
     const input = plan('optional-day', '2026-10-19', [d]);
@@ -105,7 +105,7 @@ test('schedule reference never copies previous-day checkmarks, actual entries, r
   assert.equal(reference.doses[0].sourceText, consumed.sourceText);
   for (const key of ['checked', 'actualEntries', 'actualTime', 'actualTimeText', 'state', 'completionReportedAt', 'reportHistory', 'reportSourceText'])
     assert.equal(Object.hasOwn(reference.doses[0], key), false, key);
-  assert.match(reference.instructions, /不代表今天已服/);
+  assert.match(reference.instructions, /not evidence of intake today/);
 });
 
 test('schedule reference has explicit truncation and stays within 10000 encoded characters with escaped source text', () => {
@@ -140,6 +140,6 @@ test('MCP schemas expose nullable schedule metadata and the narrow idempotent ch
   assert.equal(tool.inputSchema.additionalProperties, false);
   assert.deepEqual(tool.inputSchema.required, ['operationId', 'expectedRevision', 'planId', 'doseId', 'checked']);
   assert.deepEqual(Object.keys(tool.inputSchema.properties).sort(), ['checked', 'doseId', 'expectedRevision', 'operationId', 'planId']);
-  assert.match(tool.description, /实际服用/);
-  assert.match(draft.description, /不能复制旧日已服状态或时间/);
+  assert.match(tool.description, /explicit actual use/);
+  assert.match(draft.description, /never copy previous actuals, checks or times/);
 });

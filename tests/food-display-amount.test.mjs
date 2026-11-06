@@ -14,13 +14,13 @@ test('frozen package weight presents grams without changing original inventory q
 test('drink volumes normalize to mL and never assume liquid density or package volume', () => {
   assert.equal(foodDisplayAmount({ quantity: 25, unit: 'ml' }).text, '25 mL');
   assert.equal(foodDisplayAmount({ quantity: 150, unit: 'mL' }).text, '150 mL');
-  assert.equal(foodDisplayAmount({ quantity: .1, unit: '罐', nutritionSnapshot: { unit: '罐', gramsPerUnit: 200, nutrition: { basisUnit: 'ml' } } }).text, '0.1 罐');
+  assert.equal(foodDisplayAmount({ quantity: .1, unit: '罐', nutritionSnapshot: { unit: '罐', gramsPerUnit: 200, nutrition: { basisUnit: 'ml' } } }).text, '0.1 cans');
 });
 
 test('missing conversions keep original evidence, and a conversion for another physical unit is never borrowed', () => {
-  assert.equal(foodDisplayAmount({ quantity: .125, unit: '袋' }).text, '0.125 袋');
-  assert.equal(foodDisplayAmount({ quantity: .1, unit: '个', nutritionSnapshot: { unit: '袋', gramsPerUnit: 1000 } }).text, '0.1 个');
-  assert.equal(foodDisplayAmount({ quantity: null, unit: 'g' }).text, '用量未报');
+  assert.equal(foodDisplayAmount({ quantity: .125, unit: '袋' }).text, '0.125 bags');
+  assert.equal(foodDisplayAmount({ quantity: .1, unit: '个', nutritionSnapshot: { unit: '袋', gramsPerUnit: 1000 } }).text, '0.1 items');
+  assert.equal(foodDisplayAmount({ quantity: null, unit: 'g' }).text, "Quantity unreported");
   assert.equal(foodDisplayAmount({ quantity: 0, unit: 'g' }).text, '0 g');
 });
 

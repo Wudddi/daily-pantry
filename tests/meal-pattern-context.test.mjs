@@ -36,7 +36,7 @@ test('a draft-status day with real completed primary meals qualifies using exact
   assert.equal(food.nutrition.kcal, 200, 'current SKU nutrition cannot rewrite historical food');
   assert.deepEqual(food.nutrition.nutrientSources, nutrition.nutrientSources);
   assert.deepEqual(food.currentInventory, { matched: true, status: 'available', location: '冷藏', quantity: 600, unit: 'g', available: true, unitMatchesActual: true });
-  assert.doesNotMatch(JSON.stringify(result), /PLANNED_SECRET|意面|AI_PLAN_TITLE_SECRET|PLAN_NOTES_SECRET|SUPPLEMENT_SECRET|SUPPLEMENT_ACTUAL_SECRET|ACTUAL_SOURCE_SECRET|FROZEN_LABEL_SECRET|HISTORY_SECRET|USER_HABIT_SECRET|12:30|13:00/);
+  assert.doesNotMatch(JSON.stringify(result), /PLANNED_SECRET|Pasta|AI_PLAN_TITLE_SECRET|PLAN_NOTES_SECRET|SUPPLEMENT_SECRET|SUPPLEMENT_ACTUAL_SECRET|ACTUAL_SOURCE_SECRET|FROZEN_LABEL_SECRET|HISTORY_SECRET|USER_HABIT_SECRET|12:30|13:00/);
   food.nutrition.nutrientSources.kcal = 'unknown'; food.currentInventory.quantity = 1;
   assert.deepEqual(original, before);
 });
@@ -93,9 +93,9 @@ test('exact SKU matching distinguishes depleted, pending, archived, missing and 
     entry('archived-stock', { itemId: 'archived' }), entry('missing-stock', { itemId: 'old-sku', name: '同名酸奶' }),
     entry('external-food', { itemId: null, name: '外面买的食物' }), entry('unknown-stock', { itemId: 'unknown' })];
   const original = state([plan(DATE, { meals: [meal('reference', 'breakfast', { actualEntries: foods })] })], [
-    { id: 'empty', name: '已用完', status: 'available', quantity: 0, unit: 'g', location: '冷藏' },
+    { id: 'empty', name: "Depleted", status: 'available', quantity: 0, unit: 'g', location: '冷藏' },
     { id: 'pending', name: '待核', status: 'pending', quantity: 10, unit: 'g', location: '' },
-    { id: 'archived', name: '已归档', status: 'archived', quantity: 10, unit: 'g', location: '冷冻' },
+    { id: 'archived', name: "Archived", status: 'archived', quantity: 10, unit: 'g', location: '冷冻' },
     { id: 'new-sku', name: '同名酸奶', status: 'available', quantity: 500, unit: 'g', location: '冷藏' },
     { id: 'unknown', name: '有货余量未知', status: 'available', quantity: null, unit: 'g', location: '常温' },
   ]);

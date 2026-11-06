@@ -3,7 +3,7 @@ import { dailyMenuSettlementCandidates } from './daily-menu-runner.mjs';
 
 export async function settleDueDailyMenus(actor: string, rawArgs: unknown = {}) {
   const args = rawArgs as { dryRun?: boolean };
-  if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => key !== 'dryRun') || args.dryRun !== undefined && typeof args.dryRun !== 'boolean') throw Object.assign(new Error('仅支持dryRun布尔参数。'), { status: 400 });
+  if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => key !== 'dryRun') || args.dryRun !== undefined && typeof args.dryRun !== 'boolean') throw Object.assign(new Error("Only the boolean dryRun parameter is supported."), { status: 400 });
   let { state } = await readInventory(actor);
   const context = dailyMenuSettlementCandidates(state);
   if (args.dryRun !== false || !context.enabled) return { available: true, revision: state.revision, dryRun: true, inventoryEffect: 'none', ...context };
@@ -30,5 +30,5 @@ export async function settleDueDailyMenus(actor: string, rawArgs: unknown = {}) 
     }
   }
   return { available: true, revision: state.revision, dryRun: false, localDate: context.localDate, results, ambiguousDates: context.ambiguousDates, hasMore: context.hasMore,
-    note: '个人勾选未参与结算；自动按菜单记账与用户明确实际报告分开，已扣部分只调差量。待核项不宣称结算成功。' };
+    note: "Personal checkmarks were not used for settlement. Automatic menu accounting and explicit actual reports remain separate; already deducted amounts are adjusted only by the difference. Pending entries are not reported as successful." };
 }

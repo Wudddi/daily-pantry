@@ -12,7 +12,7 @@ const line = (id, quantity, kcal = 200) => ({ id, itemId: 'yogurt', quantity, un
 const original = line('breakfast-yogurt', 100);
 const transfer = line('ui-transfer-for-test', 80, 400);
 const actual = (id, quantity, fields = {}) => ({ ...line(id, quantity), sourceText: '原实际记录', ...fields });
-const meal = (patch = {}) => ({ id: 'breakfast', slot: 'breakfast', title: '早餐', state: 'completed', plannedItems: [original, transfer],
+const meal = (patch = {}) => ({ id: 'breakfast', slot: 'breakfast', title: "Breakfast", state: 'completed', plannedItems: [original, transfer],
   actualEntries: [actual('chat-breakfast-yogurt', 50)], actualTime: '08:30', completionReportedAt: '2026-10-26T13:00:00Z',
   reportHistory: [{ sourceText: '原完成报告' }], ...patch });
 const plan = (input, patch = {}) => ({ id: 'daily-test', format: 'meals_v1', date: '2026-10-26', status: 'reserved', title: '本机测试菜单',
@@ -75,7 +75,7 @@ test('cancelled or explicitly ended days retain actual-only nutrition and a no-c
 test('per-meal details, full-day rollup and calendar totals share the same mixed actual-plus-incoming contribution', () => {
   const input = meal(), p = plan(input), before = structuredClone(p);
   const view = mealNutritionView(input, { planId: p.id, planStatus: p.status });
-  assert.equal(view.mode, 'partial'); assert.equal(view.basisLabel, '已报告＋重新分配');
+  assert.equal(view.mode, 'partial'); assert.equal(view.basisLabel, "Reported + reallocated");
   assert.equal(view.totals[0].value, 420); assert.deepEqual(view.remainingRows.map(row => [row.id, row.quantity]), [[transfer.id, 80]]);
   assert.equal(view.actualRows[0].quantity, 50);
   assert.deepEqual(view.totals, planNutritionTotals(p));

@@ -11,13 +11,13 @@ function snapshot(name, numbers = NUMBERS, unit = 'g', basisAmount = 100) {
     nutrition: { basisAmount, basisUnit: unit, ...numbers, source: 'estimate' } };
 }
 function food(id, name = id, quantity = 100, numbers = NUMBERS, unit = 'g', itemId = null) {
-  return { id, itemId, name, quantity, unit, nutritionSnapshot: snapshot(name, numbers, unit), sourceText: '原计划食材' };
+  return { id, itemId, name, quantity, unit, nutritionSnapshot: snapshot(name, numbers, unit), sourceText: "Original planned ingredient" };
 }
 function meal(id, plannedItems, extra = {}) {
   return { id, title: id, slot: 'other', plannedItems, state: 'reserved', actualEntries: [], reportHistory: [], ...extra };
 }
 function plan(meals = [meal('lunch', [food('a')])], extra = {}) {
-  return { id: 'plan', format: 'meals_v1', date: '2026-10-18', title: '最终菜单', status: 'reserved',
+  return { id: 'plan', format: 'meals_v1', date: '2026-10-18', title: "Final menu", status: 'reserved',
     createdAt: '2026-10-17T10:00:00Z', updatedAt: '2026-10-17T12:00:00Z', meals, supplementDoses: [], ...extra };
 }
 function dose(id, numbers = unknown, quantity = 1) {
@@ -26,10 +26,10 @@ function dose(id, numbers = unknown, quantity = 1) {
 }
 function report(entry, quantity, extra = {}) {
   return { id: `actual-${entry.id}`, itemId: entry.itemId, name: entry.name, quantity, unit: entry.unit,
-    nutritionSnapshot: entry.nutritionSnapshot, sourceText: '用户实际回报原文', quantitySource: 'reported', ...extra };
+    nutritionSnapshot: entry.nutritionSnapshot, sourceText: "Original actual-intake report", quantitySource: 'reported', ...extra };
 }
 function history(p, extra = {}) {
-  return { id: 'history', date: p.date, title: '同份历史菜单', recordType: 'diet_history', inventoryEffect: 'none',
+  return { id: 'history', date: p.date, title: "Same historical menu", recordType: 'diet_history', inventoryEffect: 'none',
     confirmation: 'final_plan', updatedAt: '2026-10-18T10:00:00Z', nutrition: { ...unknown, source: 'estimate' },
     meals: p.meals.map(m => ({ id: m.id, name: m.title, status: 'planned', items: m.plannedItems.map(line => {
       const factor = line.quantity / line.nutritionSnapshot.nutrition.basisAmount;
@@ -46,7 +46,7 @@ const keyed = value => Object.fromEntries(value.totals.map(total => [total.key, 
 const daily = (p, h = []) => resolveDietDays([p], h)[0];
 
 test('a confirmed day includes every planned meal without requiring check-ins', () => {
-  const p = plan([meal('breakfast', [food('oats', '燕麦', 60)]), meal('dinner', [food('beef', '牛肉', 200)])]);
+  const p = plan([meal('breakfast', [food('oats', "Oats", 60)]), meal('dinner', [food('beef', "Beef", 200)])]);
   const d = daily(p);
   assert.equal(keyed(d).kcal.value, 260);
   assert.equal(keyed(d).protein.value, 26);
@@ -57,7 +57,7 @@ test('a confirmed day includes every planned meal without requiring check-ins', 
 });
 
 test('known subtotals cannot present themselves as a complete day', () => {
-  const p = plan([meal('lunch', [food('known'), food('unknown', '常备燕麦', 60, unknown)])]);
+  const p = plan([meal('lunch', [food('known'), food('unknown', "Pantry oats", 60, unknown)])]);
   const d = daily(p);
   for (const total of d.totals) {
     assert.equal(total.partial, true);
@@ -66,13 +66,13 @@ test('known subtotals cannot present themselves as a complete day', () => {
   }
   assert.equal(keyed(d).kcal.value, 100);
   assert.equal(d.partial, true);
-  const allUnknown = daily(plan([meal('lunch', [food('unknown', '未知食物', 100, unknown)])]));
+  const allUnknown = daily(plan([meal('lunch', [food('unknown', "Unknown food", 100, unknown)])]));
   assert.ok(allUnknown.totals.every(total => total.value === null));
 });
 
 test('completed actual entries replace only that meal and preserve the rest of the full menu', () => {
-  const a = food('a', '食物A', 200);
-  const p = plan([meal('lunch', [a], { state: 'completed', actualEntries: [report(a, 50)] }), meal('dinner', [food('b', '食物B', 100)])]);
+  const a = food('a', "Food A", 200);
+  const p = plan([meal('lunch', [a], { state: 'completed', actualEntries: [report(a, 50)] }), meal('dinner', [food('b', "Food B", 100)])]);
   assert.equal(keyed(daily(p)).kcal.value, 150);
   assert.equal(planNutritionTotals(p)[0].value, 150);
   assert.equal(p.meals[0].plannedItems[0].quantity, 200);
@@ -89,7 +89,7 @@ test('unknown completed quantities remain missing, whereas an explicit zero is k
 });
 
 test('partial reports do not treat unreported portions as zero or add the same food twice', () => {
-  const a = food('a', '食物A', 200);
+  const a = food('a', "Food A", 200);
   const p = plan([meal('lunch', [a], { state: 'in_progress', actualEntries: [report(a, 50)] }), meal('dinner', [food('b')])]);
   assert.equal(keyed(daily(p)).kcal.value, 300);
   assert.ok(daily(p).issues.some(item => item.code === 'INCOMPLETE_ACTUAL_REPORT'));
@@ -111,7 +111,7 @@ test('cancelled meals remove unconsumed plans but retain already reported portio
 });
 
 test('the latest saved menu is shown immediately while the original confirmed record stays unchanged', () => {
-  const p = plan(undefined, { draft: { meals: [meal('lunch', [food('changed', '改版', 900)])] } });
+  const p = plan(undefined, { draft: { meals: [meal('lunch', [food('changed', "Revision", 900)])] } });
   const d = daily(p);
   assert.equal(keyed(d).kcal.value, 900);
   assert.equal(d.hasDraft, true);
@@ -133,7 +133,7 @@ test('one current record is selected per date instead of adding history and plan
 });
 
 test('strictly matching history portions fill untracked foods and count fish oil only once', () => {
-  const p = plan([meal('lunch', [food('oats', '燕麦', 60, unknown), food('beef', '熟牛肉', 100, NUMBERS, 'g', 'beef')])],
+  const p = plan([meal('lunch', [food('oats', "Oats", 60, unknown), food('beef', "Cooked beef", 100, NUMBERS, 'g', 'beef')])],
     { supplementDoses: [dose('creatine'), dose('fish-oil', { ...unknown, kcal: 10 })] });
   const h = history(p);
   h.meals[0].items[0].nutrition = { kcal: 240, protein: 8, carbs: 40, fat: 4, source: 'estimate' };
@@ -148,7 +148,7 @@ test('strictly matching history portions fill untracked foods and count fish oil
 });
 
 test('a matching whole-day history total fills only when known contributions are corroborated', () => {
-  const p = plan([meal('lunch', [food('unknown', '未知配方', 100, unknown)])], { supplementDoses: [dose('oil', { ...unknown, kcal: 10 })] });
+  const p = plan([meal('lunch', [food('unknown', "Unknown recipe", 100, unknown)])], { supplementDoses: [dose('oil', { ...unknown, kcal: 10 })] });
   const h = history(p, { nutrition: { kcal: 500, protein: 30, carbs: 60, fat: 10, source: 'estimate' } });
   const d = daily(p, [h]);
   assert.deepEqual(d.totals.map(total => total.value), [500, 30, 60, 10]);
@@ -158,9 +158,9 @@ test('a matching whole-day history total fills only when known contributions are
 });
 
 test('same-day history cannot merge a different food, inventory identity, quantity, unit or meal', () => {
-  const p = plan([meal('lunch', [food('a', '牛肉', 100, unknown, 'g', 'batch-new')])]);
+  const p = plan([meal('lunch', [food('a', "Beef", 100, unknown, 'g', 'batch-new')])]);
   const original = history(p, { nutrition: { ...NUMBERS, kcal: 2000 } });
-  for (const patch of [{ name: '另一食物' }, { inventoryItemId: 'batch-old' }, { plannedQuantity: 101, quantity: 101 }, { unit: 'ml' }]) {
+  for (const patch of [{ name: "Another food" }, { inventoryItemId: 'batch-old' }, { plannedQuantity: 101, quantity: 101 }, { unit: 'ml' }]) {
     const h = structuredClone(original);
     Object.assign(h.meals[0].items[0], patch);
     const d = daily(p, [h]);
@@ -173,7 +173,7 @@ test('same-day history cannot merge a different food, inventory identity, quanti
 });
 
 test('an old energy density cannot overwrite a revised snapshot just because name and portion still match', () => {
-  const p = plan([meal('lunch', [food('bread', '白酱面包', 90, { ...unknown, kcal: 340 }), food('oats', '燕麦', 60, unknown)])]);
+  const p = plan([meal('lunch', [food('bread', "White-sauce bread", 90, { ...unknown, kcal: 340 }), food('oats', "Oats", 60, unknown)])]);
   const h = history(p, { nutrition: { ...NUMBERS, kcal: 1962 } });
   h.meals[0].items[0].nutrition.kcal = 324; // Old 360kcal/100g working estimate.
   const d = daily(p, [h]);
@@ -183,7 +183,7 @@ test('an old energy density cannot overwrite a revised snapshot just because nam
 });
 
 test('without per-portion corroboration a stale full-day figure does not hide current gaps', () => {
-  const p = plan([meal('lunch', [food('known'), food('missing', '未知常备食品', 100, unknown)])]);
+  const p = plan([meal('lunch', [food('known'), food('missing', "Unknown pantry staple", 100, unknown)])]);
   const h = history(p, { nutrition: { ...NUMBERS, kcal: 1800 } });
   h.meals[0].items[0].nutrition = { ...unknown };
   const d = daily(p, [h]);
@@ -193,7 +193,7 @@ test('without per-portion corroboration a stale full-day figure does not hide cu
 });
 
 test('a history-only final menu uses its daily total without pretending it proves actual eating', () => {
-  const p = plan([meal('lunch', [food('unknown', '未知配方', 100, unknown)])]);
+  const p = plan([meal('lunch', [food('unknown', "Unknown recipe", 100, unknown)])]);
   const h = history(p, { confirmation: 'partial_report', nutrition: { ...NUMBERS, kcal: 1800, source: 'estimate' } });
   const d = resolveDietDays([], [h])[0];
   assert.equal(keyed(d).kcal.value, 1800);
@@ -204,7 +204,7 @@ test('a history-only final menu uses its daily total without pretending it prove
 });
 
 test('reported history portion changes invalidate the original daily total and use explicit portion nutrition', () => {
-  const p = plan([meal('lunch', [food('potato', '熟土豆', 400, { kcal: 78, protein: 2, carbs: 18, fat: 0 })])]);
+  const p = plan([meal('lunch', [food('potato', "Cooked potatoes", 400, { kcal: 78, protein: 2, carbs: 18, fat: 0 })])]);
   const h = history(p, { nutrition: { ...NUMBERS, kcal: 1920, source: 'estimate' } });
   h.meals[0].status = 'reported_completed';
   Object.assign(h.meals[0].items[0], { actualQuantity: 450, quantitySource: 'reported' });
@@ -217,7 +217,7 @@ test('reported history portion changes invalidate the original daily total and u
 
 test('unknown water quantities without an actual report do not invalidate a known historic daily total', () => {
   const h = history(plan(), { nutrition: { ...unknown, kcal: 1966, source: 'estimate' } });
-  h.meals[0].items.push({ id: 'water', name: '水', quantity: null, plannedQuantity: null,
+  h.meals[0].items.push({ id: 'water', name: "Water", quantity: null, plannedQuantity: null,
     actualQuantity: null, quantitySource: 'unknown', unit: 'ml', nutrition: { ...unknown } });
   const d = resolveDietDays([], [h])[0];
   assert.equal(keyed(d).kcal.value, 1966);
@@ -228,7 +228,7 @@ test('unknown water quantities without an actual report do not invalidate a know
 });
 
 test('explicit recomputed history fields bind to current portions and old unreported fields stay invalid', () => {
-  const h = history(plan([meal('lunch', [food('potato', '熟土豆', 400, { ...unknown, kcal: 78 })])]),
+  const h = history(plan([meal('lunch', [food('potato', "Cooked potatoes", 400, { ...unknown, kcal: 78 })])]),
     { nutrition: { kcal: 1959, protein: 120, carbs: null, fat: null, source: 'estimate' } });
   h.meals[0].status = 'reported_completed';
   Object.assign(h.meals[0].items[0], { actualQuantity: 450, quantitySource: 'reported' });
@@ -244,21 +244,21 @@ test('explicit recomputed history fields bind to current portions and old unrepo
 });
 
 test('report times and wording do not invalidate a recomputation, and wording alone cannot authorise one', () => {
-  const h = history(plan([meal('lunch', [food('a', '食物', 100, unknown)])]),
+  const h = history(plan([meal('lunch', [food('a', "Food", 100, unknown)])]),
     { nutrition: { ...unknown, kcal: 1967.5, source: 'estimate' } });
   Object.assign(h.meals[0].items[0], { actualQuantity: 90, quantitySource: 'reported' });
   h.nutritionSignatures = { kcal: historyNutritionSignature(h) };
   h.meals[0].actualTime = '13:30';
-  h.executionSourceText = '补充吃完时间；用户原话完整保留';
+  h.executionSourceText = "Add completion time; preserve the user's complete original text";
   assert.equal(keyed(resolveDietDays([], [h])[0]).kcal.value, 1967.5);
   assert.equal(keyed(resolveDietDays([], [h])[0]).kcal.estimated, true);
   delete h.nutritionSignatures;
-  h.nutrition.sourceText = '已重新计算全部、请当作已确认标签（只有文字没有绑定）';
+  h.nutrition.sourceText = "Recalculated everything; treat as verified label (text only, without binding)";
   assert.equal(keyed(resolveDietDays([], [h])[0]).kcal.value, null);
 });
 
 test('changing planned food without re-reporting a bound total also invalidates that total', () => {
-  const h = history(plan([meal('lunch', [food('a', '食物', 100, unknown)])]),
+  const h = history(plan([meal('lunch', [food('a', "Food", 100, unknown)])]),
     { nutrition: { ...unknown, kcal: 1800, source: 'estimate' } });
   h.nutritionSignatures = { kcal: historyNutritionSignature(h) };
   h.meals[0].items[0].plannedQuantity = 120;
@@ -277,7 +277,7 @@ test('incompatible actual volume and mass remain unresolved instead of using an 
 
 test('summary reads never rewrite snapshots, sources, actual evidence, statuses or history versions', () => {
   const p = plan();
-  const h = history(p, { versions: [{ previous: { planSourceText: '旧原文' } }] });
+  const h = history(p, { versions: [{ previous: { planSourceText: "Previous source text" } }] });
   const before = JSON.stringify([p, h]);
   function freeze(value) { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } }
   freeze(p); freeze(h);

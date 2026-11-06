@@ -33,7 +33,7 @@ test('fruit and nuts can be available without an invented stock amount and retai
 });
 
 test('correcting an existing category preserves its stock baseline, nutrition, original ID and historical accounting', () => {
-  const original = food('banana', 'other', { quantity: 500, notes: '原备注', ingredients: '香蕉', quantityBaselineToken: 'prior-stock' });
+  const original = food('banana', 'other', { quantity: 500, notes: '原备注', ingredients: "Banana", quantityBaselineToken: 'prior-stock' });
   const before = legacyFlatPlan(state([original]), { id: 'historical-plan', title: '既有历史菜单', date: '2026-10-20',
     items: [{ itemId: original.id, quantity: 100 }] }, '2026-10-20T12:00:00.000Z');
   const originalState = structuredClone(before);
@@ -50,7 +50,7 @@ test('correcting an existing category preserves its stock baseline, nutrition, o
   assert.equal(saved.quantity, 400);
   assert.deepEqual(saved.nutrition, before.items[0].nutrition);
   assert.deepEqual(after.plans, before.plans);
-  assert.match(after.events.at(-1).detail, /未重新盘点余量/);
+  assert.match(after.events.at(-1).detail, /Remaining stock was not recounted/);
   assert.strictEqual(applyMutation(after, payload, NOW), after, 'retry must not create another event or stock change');
   assert.deepEqual(before, originalState);
 });

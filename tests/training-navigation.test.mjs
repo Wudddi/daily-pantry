@@ -47,10 +47,10 @@ test('all and other filters preserve empty records without guessing unreported m
 
 test('body-part navigation has the agreed fixed order and labels', () => {
   assert.deepEqual(BODY_PARTS, [
-    { id: 'chest', label: '胸' }, { id: 'back', label: '背' },
-    { id: 'shoulders', label: '肩' }, { id: 'biceps', label: '二头' },
-    { id: 'triceps', label: '三头' }, { id: 'legs', label: '腿' },
-    { id: 'abs', label: '腹部' }, { id: 'other', label: '其他' },
+    { id: 'chest', label: "Chest" }, { id: 'back', label: "Back" },
+    { id: 'shoulders', label: "Shoulders" }, { id: 'biceps', label: "Biceps" },
+    { id: 'triceps', label: "Triceps" }, { id: 'legs', label: "Legs" },
+    { id: 'abs', label: "Abs" }, { id: 'other', label: "Other" },
   ]);
 });
 
@@ -88,7 +88,7 @@ test('the actual seated neutral-grip row retains its grip-test wording and train
   const before = structuredClone(exercise);
   const grouped = groupExercises([exercise]);
   assert.equal(classifyExercise(exercise.name), 'back');
-  assert.equal(grouped[0].label, '背');
+  assert.equal(grouped[0].label, "Back");
   assert.equal(grouped[0].exercises[0].exercise, exercise);
   assert.equal(grouped[0].exercises[0].index, 0);
   assert.deepEqual(exercise, before);
@@ -130,11 +130,11 @@ test('session labels are unique in fixed order and do not use titles or status a
   const exercises = [{ name: '哑铃弯举' }, { name: '坐姿交替哑铃弯举' }, { name: '高位下拉' }];
   const planned = { title: '胸与腿训练计划', status: 'planned', exercises };
   const completed = { title: '实际训练', status: 'completed', exercises };
-  assert.deepEqual(sessionBodyParts(planned), ['背', '二头']);
-  assert.deepEqual(sessionBodyParts(completed), ['背', '二头']);
+  assert.deepEqual(sessionBodyParts(planned), ["Back", "Biceps"]);
+  assert.deepEqual(sessionBodyParts(completed), ["Back", "Biceps"]);
   assert.equal(planned.status, 'planned');
   assert.deepEqual(groupExercises([]), []);
-  assert.deepEqual(sessionBodyParts({ title: '胸', exercises: [] }), []);
+  assert.deepEqual(sessionBodyParts({ title: "Chest", exercises: [] }), []);
   assert.deepEqual(sessionBodyParts(undefined), []);
 });
 

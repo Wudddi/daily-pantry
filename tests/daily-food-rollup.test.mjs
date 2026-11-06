@@ -10,11 +10,11 @@ const AT = '2026-10-26T12:00:00.000Z';
 const numbers = { kcal: 100, protein: 10, carbs: 12, fat: 2 };
 const snapshot = (name, patch = {}) => ({ name, unit: 'g', gramsPerUnit: null, ingredients: '', supplementFacts: '',
   nutrition: { basisAmount: 100, basisUnit: 'g', ...numbers, source: 'label' }, ...patch });
-const food = (id, itemId, quantity, patch = {}) => ({ id, itemId, name: itemId ?? '常备食物', quantity, unit: 'g',
-  nutritionSnapshot: snapshot(itemId ?? '常备食物'), ...patch });
+const food = (id, itemId, quantity, patch = {}) => ({ id, itemId, name: itemId ?? "Pantry staple", quantity, unit: 'g',
+  nutritionSnapshot: snapshot(itemId ?? "Pantry staple"), ...patch });
 const meal = (id, plannedItems, patch = {}) => ({ id, slot: id, title: id, state: 'reserved', plannedItems,
   actualEntries: [], ...patch });
-const plan = (meals, patch = {}) => ({ id: 'daily-20261026', date: '2026-10-26', format: 'meals_v1', title: '全天菜单',
+const plan = (meals, patch = {}) => ({ id: 'daily-20261026', date: '2026-10-26', format: 'meals_v1', title: "Daily menu",
   status: 'draft', meals, supplementDoses: [], ...patch });
 const totals = summary => Object.fromEntries(summary.totals.map(total => [total.key, total.value]));
 const qty = (summary, itemId) => summary.rows.find(row => row.itemId === itemId)?.quantity;
@@ -34,9 +34,9 @@ test('same food across lunch and dinner becomes one day row with original meal a
 });
 
 test('reliably frozen bag weights combine with grams, while mL never guesses density or combines with grams', () => {
-  const meat = snapshot('牛肉', { unit: '袋', gramsPerUnit: 132 });
+  const meat = snapshot("Beef", { unit: '袋', gramsPerUnit: 132 });
   const p = plan([meal('lunch', [food('l', 'beef-batch', 0.5, { unit: '袋', nutritionSnapshot: meat }),
-    food('water-volume', 'sauce', 10, { unit: 'ml', nutritionSnapshot: snapshot('酱', { unit: 'ml' }) })]),
+    food('water-volume', 'sauce', 10, { unit: 'ml', nutritionSnapshot: snapshot("Sauce", { unit: 'ml' }) })]),
   meal('dinner', [food('d', 'beef-batch', 66, { nutritionSnapshot: meat }), food('water-mass', 'sauce', 10)])]);
   const summary = dailyFoodRollup(p);
   assert.equal(qty(summary, 'beef-batch'), 132);
@@ -46,7 +46,7 @@ test('reliably frozen bag weights combine with grams, while mL never guesses den
 });
 
 test('unknown package conversions remain separate and unknown amounts/nutrients remain unknown, never zero', () => {
-  const unknown = snapshot('酥点', { unit: '袋', gramsPerUnit: null, nutrition: { basisAmount: 100, basisUnit: 'g', kcal: null, protein: null, carbs: null, fat: null } });
+  const unknown = snapshot("Pastry", { unit: '袋', gramsPerUnit: null, nutrition: { basisAmount: 100, basisUnit: 'g', kcal: null, protein: null, carbs: null, fat: null } });
   const summary = dailyFoodRollup(plan([meal('lunch', [food('a', 'pastry', 1, { unit: '袋', nutritionSnapshot: unknown })]),
     meal('dinner', [food('b', 'pastry', 80), food('c', 'unknown-actual', null)])]));
   assert.deepEqual(summary.rows.filter(row => row.itemId === 'pastry').map(row => row.unit), ['袋', 'g']);
@@ -56,10 +56,10 @@ test('unknown package conversions remain separate and unknown amounts/nutrients 
 });
 
 test('different batches stay separate even with identical names and same-ID snapshot differences sum each saved contribution', () => {
-  const first = snapshot('卤牛肉');
-  const changed = snapshot('卤牛肉', { nutrition: { ...first.nutrition, kcal: 120 } });
-  const summary = dailyFoodRollup(plan([meal('lunch', [food('a', 'batch-1', 100, { name: '卤牛肉', nutritionSnapshot: first })]),
-    meal('dinner', [food('b', 'batch-1', 100, { name: '卤牛肉', nutritionSnapshot: changed }), food('c', 'batch-2', 50, { name: '卤牛肉' })])]));
+  const first = snapshot("Braised beef");
+  const changed = snapshot("Braised beef", { nutrition: { ...first.nutrition, kcal: 120 } });
+  const summary = dailyFoodRollup(plan([meal('lunch', [food('a', 'batch-1', 100, { name: "Braised beef", nutritionSnapshot: first })]),
+    meal('dinner', [food('b', 'batch-1', 100, { name: "Braised beef", nutritionSnapshot: changed }), food('c', 'batch-2', 50, { name: "Braised beef" })])]));
   assert.equal(summary.rows.length, 2);
   assert.equal(summary.rows[0].nutritionBasisVaries, true);
   assert.equal(summary.rows[0].totals.find(total => total.key === 'kcal').value, 220);
@@ -68,7 +68,7 @@ test('different batches stay separate even with identical names and same-ID snap
 
 test('untracked identical foods can merge, but differing untracked bases and absent identities do not fabricate a product match', () => {
   const summary = dailyFoodRollup(plan([meal('lunch', [food('a', null, 40), food('b', null, 20)]),
-    meal('dinner', [food('c', null, 10, { nutritionSnapshot: snapshot('常备食物', { nutrition: { ...numbers, basisAmount: 100, basisUnit: 'g', kcal: 200 } }) })])]));
+    meal('dinner', [food('c', null, 10, { nutritionSnapshot: snapshot("Pantry staple", { nutrition: { ...numbers, basisAmount: 100, basisUnit: 'g', kcal: 200 } }) })])]));
   assert.equal(summary.rows.length, 2);
   assert.deepEqual(summary.rows.map(row => row.quantity), [60, 10]);
 });
@@ -87,8 +87,8 @@ test('completed meals use actual once; partial reports preserve the effective me
 
 test('supplements contribute to the day total once while food list and food subtotal stay independent', () => {
   const p = plan([meal('lunch', [food('a', 'rice', 100)])], { supplementDoses: [{ id: 'oil', itemId: 'fish-oil',
-    plannedQuantity: 1, unit: '粒', state: 'completed', actualEntries: [{ id: 'actual-oil', itemId: 'fish-oil', name: '鱼油',
-      quantity: 1, unit: '粒', nutritionSnapshot: snapshot('鱼油', { unit: '粒', nutrition: { basisAmount: 1, basisUnit: '粒', kcal: 10, protein: 0, carbs: 0, fat: 1, source: 'estimate' } }) }] }] });
+    plannedQuantity: 1, unit: '粒', state: 'completed', actualEntries: [{ id: 'actual-oil', itemId: 'fish-oil', name: "Fish oil",
+      quantity: 1, unit: '粒', nutritionSnapshot: snapshot("Fish oil", { unit: '粒', nutrition: { basisAmount: 1, basisUnit: '粒', kcal: 10, protein: 0, carbs: 0, fat: 1, source: 'estimate' } }) }] }] });
   const summary = dailyFoodRollup(p);
   assert.equal(summary.rows.length, 1);
   assert.equal(summary.foodTotals.find(total => total.key === 'kcal').value, 100);
@@ -109,9 +109,9 @@ test('saving and patching menus updates the readable day summary after reload wi
     nutrition: { basisAmount: 100, basisUnit: 'g', ...numbers, source: 'label' } }, AT);
   let state = { ...stateOf(null), plans: [], items: [rice], operationIds: [] };
   const mutate = (action, payload) => applyMutation(state, { action, ...payload, operationId: `op-${state.revision}`, expectedRevision: state.revision }, AT);
-  state = mutate('save_meal_plan_draft', { plan: { id: 'day', date: '2026-10-26', title: '分两餐', meals: [
-    { id: 'lunch', slot: 'lunch', title: '午餐', plannedItems: [{ id: 'l', itemId: 'rice', quantity: 40 }] },
-    { id: 'dinner', slot: 'dinner', title: '晚餐', plannedItems: [{ id: 'd', itemId: 'rice', quantity: 60 }] }] } });
+  state = mutate('save_meal_plan_draft', { plan: { id: 'day', date: '2026-10-26', title: "Split between two meals", meals: [
+    { id: 'lunch', slot: 'lunch', title: "Lunch", plannedItems: [{ id: 'l', itemId: 'rice', quantity: 40 }] },
+    { id: 'dinner', slot: 'dinner', title: "Dinner", plannedItems: [{ id: 'd', itemId: 'rice', quantity: 60 }] }] } });
   assert.equal(qty(readDailyFoodSummary(state, { planId: 'day' }), 'rice'), 100);
   const inventory = structuredClone(state.items);
   state = mutate('patch_meal_plan', { planId: 'day', mode: 'draft', mealPatches: [{ id: 'lunch', itemPatches: [{ id: 'l', quantity: 50 }] }] });
@@ -147,22 +147,22 @@ test('large derived summaries paginate within a bounded response with full total
 test('a normal 17-food four-meal preparation table fits one transport page without losing quantities, allocations or nutrient flags', () => {
   const names = [
     'Oikos High Protein Greek Yogurt Plain 0% M.F.（650g）',
-    'Lavish Doses 原味黄油可颂（Butter Croissant，52g）',
+    "Lavish Doses Butter Croissant (52 g)",
     'ON Gold Standard 100% Whey — Extreme Milk Chocolate',
-    'PC Blueberries Cultivated 冷冻蓝莓',
-    '常备无糖纯可可粉',
-    '示例备餐132g标准袋',
-    'Pane Fresco Whole Wheat Pan Bread（Fortinos 现烤）',
-    'No Name Large Size Eggs（生鸡蛋，12个装×2）',
-    'No Name Mixed Garden Vegetables（豆角＋胡萝卜冷冻杂蔬）',
-    '彩椒（当前实报余量）',
-    '酱油（10kcal/15mL，红黄标签1.9L）',
-    'Président Premium Salted Cultured Butter（有盐发酵黄油）',
-    '香蕉 Bananas Bunch（5根，2026-10-21 Superstore）',
-    'Lavish Doses 巧克力杏仁可颂（Almond Chocolate Croissant）',
-    'Blackbird Baking Co. Seeded Sourdough（多籽酸种面包）',
-    'Coombe Castle Cheshire 英国硬质奶酪（200g）',
-    'PC Broccoli Florets 冷冻西兰花（500g袋）',
+    "PC Cultivated Frozen Blueberries",
+    "Pantry unsweetened cocoa powder",
+    "Eye of Round braised lean beef (2026-10-18, standard 132 g bag)",
+    "Pane Fresco Whole Wheat Pan Bread (Fortinos bakery)",
+    "No Name Large Size Eggs (raw eggs, 2 cartons of 12)",
+    "No Name Mixed Garden Vegetables (frozen green beans and carrots)",
+    "Bell peppers (reported remaining quantity)",
+    "Soy sauce (10 kcal per 15 mL, red/yellow label, 1.9 L)",
+    "President Premium Salted Cultured Butter",
+    "Bananas (bunch of 5, 2026-10-21 Superstore)",
+    "Lavish Doses Almond Chocolate Croissant",
+    "Blackbird Baking Co. Seeded Sourdough",
+    "Coombe Castle Cheshire hard cheese (200 g)",
+    "PC Frozen Broccoli Florets (500 g bag)",
   ];
   const allocations = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9, 10, 11], [0, 12, 13], [5, 7, 8, 9, 10, 14, 15, 16]];
   const slots = ['breakfast', 'lunch', 'snack', 'dinner'];

@@ -4,13 +4,13 @@ import { applyDietAction } from '../lib/diet.mjs';
 
 const FIRST = '2026-10-18T16:00:00.000Z';
 const LATER = '2026-10-18T17:00:00.000Z';
-const WORDS = '午饭之后吃了鱼油，实际粒数未知，不将计划1粒当实服。';
+const WORDS = "Took fish oil after lunch; actual capsule count unknown, not assumed to equal the planned 1 capsule.";
 function item(id, quantity, supplement = false) {
   const unit = supplement ? '粒' : '袋';
   return { id, name: id, quantity, unit, category: supplement ? 'supplement' : 'prepared', status: 'available', quantityBaselineToken: 'initial', confirmedAt: FIRST, updatedAt: FIRST, gramsPerUnit: null, nutrition: { basisAmount: 1, basisUnit: unit, kcal: null, protein: null, carbs: null, fat: null, source: 'unknown' } };
 }
 function plan(id = 'today', date = '2026-10-18') {
-  return { id, date, title: id, meals: [{ id: 'lunch', slot: 'lunch', title: '午饭', plannedItems: [{ id: 'food', itemId: 'food', quantity: 2 }] }], supplementDoses: [{ id: 'oil', itemId: 'fish-oil', plannedQuantity: 1 }] };
+  return { id, date, title: id, meals: [{ id: 'lunch', slot: 'lunch', title: "Lunch", plannedItems: [{ id: 'food', itemId: 'food', quantity: 2 }] }], supplementDoses: [{ id: 'oil', itemId: 'fish-oil', plannedQuantity: 1 }] };
 }
 function apply(state, payload, at = FIRST) {
   const result = applyDietAction(state, payload, at);
@@ -25,12 +25,12 @@ const stock = (state, id = 'fish-oil') => state.items.find(item => item.id === i
 const dose = state => state.plans.find(plan => plan.id === 'today').supplementDoses[0];
 const unknownEntry = (overrides = {}) => ({ id: 'actual-oil', itemId: 'fish-oil', quantity: null, unit: '粒', sourceText: WORDS, ...overrides });
 function report(state, overrides = {}) {
-  return apply(state, { action: 'record_supplement_intake', planId: 'today', doseId: 'oil', mode: 'complete', entries: [unknownEntry()], sourceText: '用户确认午饭后服用了鱼油，未报告粒数。', actualTime: '13:20', actualTimeText: '午饭之后', actualMealId: 'lunch', ...overrides });
+  return apply(state, { action: 'record_supplement_intake', planId: 'today', doseId: 'oil', mode: 'complete', entries: [unknownEntry()], sourceText: "The user confirmed fish oil after lunch but did not report the capsule count.", actualTime: '13:20', actualTimeText: "After lunch", actualMealId: 'lunch', ...overrides });
 }
 function legacyPending(state) {
   const next = structuredClone(state);
   next.plans[0].inventoryAccounting = 'pending_reconciliation';
-  next.plans[0].accountingIssues = [{ code: 'ACTUAL_QUANTITY_UNKNOWN', itemId: 'fish-oil', message: '实际已吃但数量未知，保留原话等待核对。' }];
+  next.plans[0].accountingIssues = [{ code: 'ACTUAL_QUANTITY_UNKNOWN', itemId: 'fish-oil', message: "Actually eaten, quantity unknown; retain source text for review." }];
   next.items.find(item => item.id === 'fish-oil').status = 'pending';
   return next;
 }
@@ -48,7 +48,7 @@ test('unknown balance and unknown actual dose preserve facts without locking inv
   assert.equal(dose(state).plannedQuantity, 1);
   assert.equal(dose(state).actualTime, '13:20');
   assert.equal(stock(state, 'food').quantity, stock(before, 'food').quantity);
-  state = apply(state, { action: 'record_meal_intake', planId: 'today', mealId: 'lunch', mode: 'complete', matchesPlannedFood: true, sourceText: '午饭按计划吃完了' }, LATER);
+  state = apply(state, { action: 'record_meal_intake', planId: 'today', mealId: 'lunch', mode: 'complete', matchesPlannedFood: true, sourceText: "Finished lunch as planned" }, LATER);
   assert.equal(state.plans[0].inventoryAccounting, 'settled');
   assert.equal(stock(state).status, 'available');
   assert.equal(stock(state).quantity, null);
@@ -61,7 +61,7 @@ test('time-only unknown-balance dose keeps original words without inventing an a
   assert.equal(stock(state).status, 'available');
   assert.equal(state.plans[0].inventoryAccounting, 'settled');
   assert.deepEqual(dose(state).actualEntries, []);
-  assert.equal(dose(state).reportSourceText, '用户确认午饭后服用了鱼油，未报告粒数。');
+  assert.equal(dose(state).reportSourceText, "The user confirmed fish oil after lunch but did not report the capsule count.");
   assert.equal(dose(state).actualTime, '13:20');
 });
 
@@ -80,7 +80,7 @@ test('known balance with unknown actual dose remains pending and does not refund
 
 test('a food shortfall settles independently of an unknown-balance unknown dose without inventing its quantity', () => {
   const before = ready();
-  const state = apply(before, { action: 'record_meal_intake', planId: 'today', mealId: 'lunch', mode: 'complete', entries: [{ id: 'extra-food', itemId: 'food', quantity: 20, sourceText: '实际吃了20袋' }], supplements: [{ doseId: 'oil', mode: 'complete', entries: [unknownEntry()] }] });
+  const state = apply(before, { action: 'record_meal_intake', planId: 'today', mealId: 'lunch', mode: 'complete', entries: [{ id: 'extra-food', itemId: 'food', quantity: 20, sourceText: "Actually ate 20 bags" }], supplements: [{ doseId: 'oil', mode: 'complete', entries: [unknownEntry()] }] });
   assert.equal(state.plans[0].inventoryAccounting, 'settled');
   assert.deepEqual(state.plans[0].accountingIssues, []);
   assert.equal(stock(state, 'food').quantity, 0);
@@ -109,7 +109,7 @@ test('explicit incompatible units still block an unknown dose even when completi
 });
 
 test('a changed stock baseline is still blocking when both balances and actual quantity are unknown', () => {
-  const before = report(ready(), { entries: [unknownEntry({ quantity: 1, sourceText: '用户明确实际1粒' })] });
+  const before = report(ready(), { entries: [unknownEntry({ quantity: 1, sourceText: "User explicitly reported 1 capsule" })] });
   stock(before).quantityBaselineToken = 'new-count';
   const state = report(before, { mode: 'correct' });
   assert.equal(stock(state).quantity, null);
@@ -164,7 +164,7 @@ test('a different plan true issue stays on that ledger without relocking explici
     const other = structuredClone(state.plans[0]);
     other.id = 'other-issue'; other.date = '2026-10-17';
     other.supplementDoses[0].actualEntries = [];
-    other.accountingIssues = [{ code, itemId: 'fish-oil', message: '真实账务异常待核' }];
+    other.accountingIssues = [{ code, itemId: 'fish-oil', message: "Real accounting issue pending review" }];
     state.plans.push(other);
     stock(state).status = 'available';
     state = apply(state, { action: 'save_meal_plan_draft', plan: plan('tomorrow', '2026-10-19') }, LATER);

@@ -12,16 +12,16 @@ const mutate=(state,action,fields={},at=AT)=>applyMutation(state,{action,operati
 const plan=state=>state.plans[0],stock=(state,id)=>state.items.find(item=>item.id===id).quantity;
 function fixture(extra={}) {
   return mutate({schemaVersion:1,revision:0,updatedAt:AT,preferences:[],events:[],operationIds:[],plans:[],
-    dailyMenuSettlementPolicy:{version:1,enabled:true,timeZone:'America/Toronto',startsOn:DAY,updatedAt:AT,sourceText:'用户要求午夜按完整菜单结算，个人标记不影响'},
+    dailyMenuSettlementPolicy:{version:1,enabled:true,timeZone:'America/Toronto',startsOn:DAY,updatedAt:AT,sourceText:"The user requested midnight settlement from the complete menu, independent of personal checkmarks"},
     items:[food('rice'),food('milk','ml'),food('beef','袋',{quantity:10,gramsPerUnit:132}),food('creatine')],...extra},'save_meal_plan_draft',
-    {plan:{id:'daily-food-'+DAY,date:DAY,title:'日终菜单',meals:[
-      {id:'breakfast',slot:'breakfast',title:'早餐',plannedItems:[{id:'milk-am',itemId:'milk',quantity:150,unit:'ml'}]},
-      {id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'rice-l',itemId:'rice',quantity:100,unit:'g'}]},
-      {id:'dinner',slot:'dinner',title:'晚餐',plannedItems:[{id:'rice-d',itemId:'rice',quantity:100,unit:'g'},{id:'beef-d',itemId:'beef',quantity:1,unit:'袋'}]},
+    {plan:{id:'daily-food-'+DAY,date:DAY,title:"Day-end menu",meals:[
+      {id:'breakfast',slot:'breakfast',title:"Breakfast",plannedItems:[{id:'milk-am',itemId:'milk',quantity:150,unit:'ml'}]},
+      {id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'rice-l',itemId:'rice',quantity:100,unit:'g'}]},
+      {id:'dinner',slot:'dinner',title:"Dinner",plannedItems:[{id:'rice-d',itemId:'rice',quantity:100,unit:'g'},{id:'beef-d',itemId:'beef',quantity:1,unit:'袋'}]},
     ],supplementDoses:[{id:'creatine-am',itemId:'creatine',plannedQuantity:5,timingSlot:'breakfast'}]}});
 }
 const settle=(state,fields={},at=MIDNIGHT)=>mutate(state,'settle_daily_menu',{planId:plan(state).id,effectiveDate:plan(state).date,policyStartDate:state.dailyMenuSettlementPolicy.startsOn,confirmed:true,...fields},at);
-const report=(state,mealId,entries,mode='append')=>mutate(state,'record_meal_intake',{planId:plan(state).id,mealId,mode,entries,sourceText:'用户明确报告真实摄入'},MIDNIGHT);
+const report=(state,mealId,entries,mode='append')=>mutate(state,'record_meal_intake',{planId:plan(state).id,mealId,mode,entries,sourceText:"The user explicitly reported actual intake"},MIDNIGHT);
 
 test('midnight settles the latest complete saved menu independently of personal marks, without inventing actuals or supplement intake',()=>{
   const original=fixture();
@@ -50,8 +50,8 @@ test('a saved change before midnight is used while unsaved personal marks never 
 
 test('real completed meals and explicit zero overrides win over the automatic menu',()=>{
   let state=fixture();
-  state=report(state,'lunch',[{id:'actual-rice-l',itemId:'rice',quantity:60,unit:'g',sourceText:'午餐实际只吃60g'}],'complete');
-  state=report(state,'dinner',[{id:'actual-beef-zero',itemId:'beef',quantity:0,unit:'袋',sourceText:'牛肉没吃'}]);
+  state=report(state,'lunch',[{id:'actual-rice-l',itemId:'rice',quantity:60,unit:'g',sourceText:"Lunch actual: only 60 g"}],'complete');
+  state=report(state,'dinner',[{id:'actual-beef-zero',itemId:'beef',quantity:0,unit:'袋',sourceText:"Did not eat beef"}]);
   const facts=copy(plan(state).meals);
   state=settle(state);
   assert.equal(stock(state,'rice'),840);assert.equal(stock(state,'beef'),10);assert.equal(stock(state,'milk'),850);
@@ -60,24 +60,24 @@ test('real completed meals and explicit zero overrides win over the automatic me
 });
 
 test('a partial actual report is topped up to the saved menu at midnight while a completed report is not',()=>{
-  let partial=report(fixture(),'lunch',[{id:'partial-rice',itemId:'rice',quantity:60,unit:'g',sourceText:'午餐目前先吃60g'}]);
+  let partial=report(fixture(),'lunch',[{id:'partial-rice',itemId:'rice',quantity:60,unit:'g',sourceText:"Lunch so far: 60 g"}]);
   assert.equal(stock(partial,'rice'),940);
   const facts=copy(plan(partial).meals[1].actualEntries);
   partial=settle(partial);
   assert.equal(stock(partial,'rice'),800,'midnight adds the remaining40g plus dinner100g');
   assert.deepEqual(plan(partial).meals[1].actualEntries,facts,'the assumed remaining40g is accounting only');
-  let completed=report(fixture(),'lunch',[{id:'finished-rice',itemId:'rice',quantity:60,unit:'g',sourceText:'午餐结束，实际只有60g'}],'complete');
+  let completed=report(fixture(),'lunch',[{id:'finished-rice',itemId:'rice',quantity:60,unit:'g',sourceText:"Lunch finished with only 60 g eaten"}],'complete');
   completed=settle(completed);
   assert.equal(stock(completed,'rice'),840,'completed actual60g overrides planned100g');
 });
 
 test('later actual corrections settle only their difference while other automatically accounted meals remain charged',()=>{
-  let state=report(fixture(),'lunch',[{id:'actual-rice-l',itemId:'rice',quantity:60,unit:'g',sourceText:'午餐实际60g'}],'complete');
+  let state=report(fixture(),'lunch',[{id:'actual-rice-l',itemId:'rice',quantity:60,unit:'g',sourceText:"Lunch actual: 60 g"}],'complete');
   state=settle(state);
   assert.equal(stock(state,'rice'),840);
-  state=report(state,'lunch',[{id:'actual-rice-l',itemId:'rice',quantity:80,unit:'g',sourceText:'更正午餐实际80g'}],'correct');
+  state=report(state,'lunch',[{id:'actual-rice-l',itemId:'rice',quantity:80,unit:'g',sourceText:"Correct lunch actual to 80 g"}],'correct');
   assert.equal(stock(state,'rice'),820);assert.equal(stock(state,'milk'),850);assert.equal(stock(state,'beef'),9);
-  state=report(state,'dinner',[{id:'actual-beef-zero',itemId:'beef',quantity:0,unit:'袋',sourceText:'实际上牛肉没吃'}]);
+  state=report(state,'dinner',[{id:'actual-beef-zero',itemId:'beef',quantity:0,unit:'袋',sourceText:"Actually did not eat beef"}]);
   assert.equal(stock(state,'beef'),10);assert.equal(stock(state,'rice'),820);assert.equal(stock(state,'milk'),850);
   assert(plan(state).meals[0].actualEntries.length===0,'assumed breakfast stays explicitly unreported');
 });
@@ -98,7 +98,7 @@ test('personal marks and later plan-only edits preserve the frozen accounting ba
   state=mutate(state,'set_food_personal_check',{planId:plan(state).id,mealId:'lunch',wholeMeal:true,checked:true},MIDNIGHT);
   state=mutate(state,'patch_meal_plan',{planId:plan(state).id,mode:'draft',mealPatches:[{id:'lunch',itemPatches:[{id:'rice-l',quantity:500}]}]},MIDNIGHT);
   assert.deepEqual(state.items,amounts);assert.deepEqual(plan(state).dailySettlement,basis);
-  state=report(state,'dinner',[{id:'explicit-beef-zero',itemId:'beef',quantity:0,unit:'袋',sourceText:'牛肉没有吃'}]);
+  state=report(state,'dinner',[{id:'explicit-beef-zero',itemId:'beef',quantity:0,unit:'袋',sourceText:"Did not eat beef"}]);
   assert.equal(stock(state,'rice'),800,'a later real correction does not silently bill a subsequently edited old menu');
   assert.equal(stock(state,'beef'),10);assert.strictEqual(settle(state),state);
 });
@@ -143,15 +143,15 @@ test('historical food and supplement reservation credits are reused rather than 
   assert.deepEqual(state.items.map(item=>[item.id,item.quantity]),quantities);
   assert.deepEqual(plan(state).supplementDoses,supplements);
   assert.equal(plan(state).dailySettlement.accounting,'settled');
-  state=report(state,'lunch',[{id:'final-lunch80',itemId:'rice',quantity:80,unit:'g',sourceText:'之后明确午餐只吃80g'}],'complete');
+  state=report(state,'lunch',[{id:'final-lunch80',itemId:'rice',quantity:80,unit:'g',sourceText:"Later clarified that lunch was only 80 g"}],'complete');
   assert.equal(stock(state,'rice'),820,'only20g is refunded from the already-accounted daily total');
   assert.equal(stock(state,'milk'),850);assert.equal(stock(state,'beef'),9);assert.equal(stock(state,'creatine'),995);
 });
 
 test('unknown real portions or incompatible units remain pending for that food while other automatic foods settle',()=>{
   for(const [mealId,entry] of [
-    ['lunch',{id:'unknown-rice',itemId:'rice',quantity:null,unit:'g',sourceText:'吃了，实际量还不清楚'}],
-    ['dinner',{id:'different-beef-unit',itemId:'beef',quantity:66,unit:'g',sourceText:'实际66g，未核准库存袋的换算'}],
+    ['lunch',{id:'unknown-rice',itemId:'rice',quantity:null,unit:'g',sourceText:"Ate, but the actual quantity is still unknown"}],
+    ['dinner',{id:'different-beef-unit',itemId:'beef',quantity:66,unit:'g',sourceText:"Actual 66 g, with no verified inventory bag conversion"}],
   ]) {
     let state=report(fixture(),mealId,[entry]);
     const facts=copy(plan(state).meals),badId=entry.itemId,badStock=stock(state,badId);

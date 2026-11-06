@@ -20,6 +20,8 @@ export type FoodItem = {
   nutrition: FoodNutrition; gramsPerUnit: number | null;
   notes: string; ingredients: string; supplementFacts: string;
   confirmedAt: string; updatedAt: string; quantityBaselineToken?: string;
+  quantityBaselineAt?: string;
+  quantityBaselineSource?: 'initial' | 'upsert' | 'set_quantity' | 'restock' | 'restore' | 'reconcile_food_inventory';
   freshness?: FoodFreshness;
 };
 export type InventoryEvent = { id: string; at: string; kind?: string; action?: string; itemName?: string; itemId?: string; detail: string; freshnessBefore?: FoodFreshness | null; freshnessAfter?: FoodFreshness | null };

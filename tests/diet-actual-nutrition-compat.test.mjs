@@ -4,22 +4,22 @@ import { applyMutation, validateItem } from '../lib/inventory.mjs';
 import { nutritionFactor } from '../lib/diet-nutrition.mjs';
 import { resolveDietDays } from '../lib/diet-day-summary.mjs';
 const NOW='2026-10-20T22:00:00.000Z', PREFIX='actual-nutrition:', copy=value=>structuredClone(value);
-const nutrition=(kcal=249.4,protein=7.74,carbs=43,fat=5.16,amount=1,unit='个')=>({basisAmount:amount,basisUnit:unit,kcal,protein,carbs,fat,source:'estimate',sourceText:'标签每100g及用户实称86g换算的本个份量；没有推断库存克重',sourceNote:'独立实际营养完整来源'});
+const nutrition=(kcal=249.4,protein=7.74,carbs=43,fat=5.16,amount=1,unit='个')=>({basisAmount:amount,basisUnit:unit,kcal,protein,carbs,fat,source:'estimate',sourceText:"Per-100-g label and measured 86 g for this item; no inferred inventory weight",sourceNote:"Complete independent actual-nutrition source"});
 function mutate(state,action,payload,operationId=action+'-'+state.revision){return applyMutation(state,{action,...payload,operationId,expectedRevision:state.revision},NOW);}
 function ready(){
   let state={schemaVersion:1,revision:0,updatedAt:NOW,events:[],operationIds:[],preferences:[],plans:[],items:[
-    validateItem({id:'bagel',name:'贝果',category:'bread',quantity:5,unit:'个',gramsPerUnit:85,nutrition:{basisAmount:100,basisUnit:'g',kcal:290,protein:9,carbs:50,fat:6,source:'label',sourceText:'原标签每100g'}},NOW),
-    validateItem({id:'veg',name:'蔬菜',category:'vegetable',quantity:1000,unit:'g'},NOW),
-    validateItem({id:'other',name:'其它餐',category:'protein',quantity:1000,unit:'g',nutrition:{basisAmount:100,basisUnit:'g',kcal:200,protein:20,carbs:10,fat:5,source:'label'}},NOW),
-    validateItem({id:'fish',name:'鱼油',category:'supplement',quantity:10,unit:'粒',nutrition:{basisAmount:1,basisUnit:'粒',kcal:10,source:'label'}},NOW),
+    validateItem({id:'bagel',name:"Bagel",category:'bread',quantity:5,unit:'个',gramsPerUnit:85,nutrition:{basisAmount:100,basisUnit:'g',kcal:290,protein:9,carbs:50,fat:6,source:'label',sourceText:"Original label per 100 g"}},NOW),
+    validateItem({id:'veg',name:"Vegetables",category:'vegetable',quantity:1000,unit:'g'},NOW),
+    validateItem({id:'other',name:"Other meal",category:'protein',quantity:1000,unit:'g',nutrition:{basisAmount:100,basisUnit:'g',kcal:200,protein:20,carbs:10,fat:5,source:'label'}},NOW),
+    validateItem({id:'fish',name:"Fish oil",category:'supplement',quantity:10,unit:'粒',nutrition:{basisAmount:1,basisUnit:'粒',kcal:10,source:'label'}},NOW),
   ]};
-  state=mutate(state,'save_meal_plan_draft',{plan:{id:'day',date:'2026-10-20',title:'完整日记录',meals:[{id:'breakfast',slot:'breakfast',title:'早餐',plannedItems:[{id:'other-line',itemId:'other',quantity:100}]},{id:'dinner',slot:'dinner',title:'晚餐',plannedItems:[{id:'bagel-line',itemId:'bagel',quantity:1},{id:'veg-line',itemId:'veg',quantity:150}]}],supplementDoses:[{id:'oil',itemId:'fish',plannedQuantity:1}]}});
+  state=mutate(state,'save_meal_plan_draft',{plan:{id:'day',date:'2026-10-20',title:"Complete daily record",meals:[{id:'breakfast',slot:'breakfast',title:"Breakfast",plannedItems:[{id:'other-line',itemId:'other',quantity:100}]},{id:'dinner',slot:'dinner',title:"Dinner",plannedItems:[{id:'bagel-line',itemId:'bagel',quantity:1},{id:'veg-line',itemId:'veg',quantity:150}]}],supplementDoses:[{id:'oil',itemId:'fish',plannedQuantity:1}]}});
   state=mutate(state,'commit_meal_plan',{planId:'day',confirmed:true});
-  state=mutate(state,'record_meal_intake',{planId:'day',mealId:'breakfast',mode:'complete',entries:[{id:'a-breakfast',itemId:'other',quantity:100,unit:'g',sourceText:'早餐实际100g'}]});
-  return mutate(state,'record_meal_intake',{planId:'day',mealId:'dinner',mode:'complete',actualTime:'20:00',sourceText:'晚餐贝果1个实称86g、蔬菜150g',entries:[{id:'a-bagel',itemId:'bagel',quantity:1,unit:'个',sourceText:'实际贝果1个实称86g'},{id:'a-veg',itemId:'veg',quantity:150,unit:'g',sourceText:'实际150g蔬菜'}]});
+  state=mutate(state,'record_meal_intake',{planId:'day',mealId:'breakfast',mode:'complete',entries:[{id:'a-breakfast',itemId:'other',quantity:100,unit:'g',sourceText:"Breakfast actual: 100 g"}]});
+  return mutate(state,'record_meal_intake',{planId:'day',mealId:'dinner',mode:'complete',actualTime:'20:00',sourceText:"Dinner: one bagel measured at 86 g and 150 g vegetables",entries:[{id:'a-bagel',itemId:'bagel',quantity:1,unit:'个',sourceText:"Actual one bagel measured at 86 g"},{id:'a-veg',itemId:'veg',quantity:150,unit:'g',sourceText:"Actual 150 g vegetables"}]});
 }
 const plan=state=>state.plans[0], dinner=state=>plan(state).meals.find(meal=>meal.id==='dinner'), actual=(state,id)=>dinner(state).actualEntries.find(entry=>entry.id===id);
-const rows=()=>[{id:PREFIX+'a-bagel',nutrition:nutrition(),sourceText:'用户授权，仅更正本个实称86g的营养，不改已吃事实'},{id:PREFIX+'a-veg',nutrition:nutrition(47,2.5,10.5,0.5,200,'g'),sourceText:'用户授权，沿用已有完整每200g蔬菜工作估算'}];
+const rows=()=>[{id:PREFIX+'a-bagel',nutrition:nutrition(),sourceText:"User-authorized nutrition correction for this measured 86 g item only, preserving intake facts"},{id:PREFIX+'a-veg',nutrition:nutrition(47,2.5,10.5,0.5,200,'g'),sourceText:"User-authorized reuse of the complete working estimate per 200 g vegetables"}];
 function bridge(state,items=rows(),fields={},operationId){return mutate(state,'patch_meal_plan',{planId:'day',mode:'apply',confirmed:true,mealPatches:[{id:'dinner',itemPatches:items}],...fields},operationId);}
 function facts(entry){const{nutritionSnapshot,nutritionCorrectionHistory,...physical}=entry;return physical;}
 function assertIsolated(after,before){
@@ -32,7 +32,7 @@ function assertIsolated(after,before){
 function reject(state,items=rows(),fields={},code){const before=copy(state);assert.throws(()=>bridge(state,items,fields),error=>!code||error.code===code);assert.deepEqual(state,before);}
 
 test('legacy-schema fields alone address existing actual nutrition while preserving an old nested draft, all facts and inventory',()=>{
-  const before=ready();plan(before).draft={...copy(plan(before)),title:'旧版保留的计划修改',patchDraft:true};
+  const before=ready();plan(before).draft={...copy(plan(before)),title:"Preserved legacy plan edit",patchDraft:true};
   const after=bridge(before);assertIsolated(after,before);
   assert.equal(actual(after,'a-bagel').nutritionSnapshot.nutrition.kcal,249.4);assert.equal(actual(after,'a-veg').nutritionSnapshot.nutrition.basisAmount,200);
   for(const row of rows()){const id=row.id.slice(PREFIX.length);assert.equal(actual(after,id).nutritionCorrectionHistory.length,1);assert.equal(actual(after,id).nutritionCorrectionHistory[0].sourceText,row.sourceText);assert.deepEqual(actual(after,id).nutritionCorrectionHistory[0].previous,actual(before,id).nutritionSnapshot);}
@@ -46,7 +46,7 @@ test('whole-item correction clears only unsupported actual average weight, audit
   assert.equal(actual(after,'a-bagel').nutritionCorrectionHistory[0].previous.gramsPerUnit,85);
   assert.equal(after.items.find(item=>item.id==='bagel').gramsPerUnit,85);
   assert.equal(nutritionFactor(snapshot,1,'个'),1);assert.equal(nutritionFactor(snapshot,86,'g'),null);
-  assert.match(after.events.at(-1).detail,/整份口径，旧平均克重换算已清除/);
+  assert.match(after.events.at(-1).detail,/ whole-portion basis\. The old average-weight conversion was cleared\. No new measured weight was inferred; inventory grams per unit are unchanged\./);
   assertIsolated(after,before);
 });
 
@@ -60,14 +60,14 @@ test('lost-response retry and new-ID no-op cannot duplicate audit, while stale o
 });
 
 test('compatibility rejects draft, missing explicit confirmation, multiple meals, unrelated plan fields and mixed planned rows',()=>{
-  const state=ready();for(const fields of [{mode:'draft'},{confirmed:false},{confirmed:undefined},{title:'不能混入标题'},{notes:'不能混入备注'},{allocationOnly:false},{supplementPatches:[]},{mealPatches:[{id:'dinner',itemPatches:rows()},{id:'breakfast',itemPatches:[rows()[0]]}]},{mealPatches:[{id:'dinner',title:'不能改餐名',itemPatches:rows()}]}])reject(state,rows(),fields);
-  reject(state,[{id:'bagel-line',quantity:2},rows()[0]]);reject(state,[rows()[0],{id:'veg-line',nutrition:rows()[1].nutrition,sourceText:'普通行混合'}]);
+  const state=ready();for(const fields of [{mode:'draft'},{confirmed:false},{confirmed:undefined},{title:"Title cannot be mixed in"},{notes:"Notes cannot be mixed in"},{allocationOnly:false},{supplementPatches:[]},{mealPatches:[{id:'dinner',itemPatches:rows()},{id:'breakfast',itemPatches:[rows()[0]]}]},{mealPatches:[{id:'dinner',title:"Meal title cannot change",itemPatches:rows()}]}])reject(state,rows(),fields);
+  reject(state,[{id:'bagel-line',quantity:2},rows()[0]]);reject(state,[rows()[0],{id:'veg-line',nutrition:rows()[1].nutrition,sourceText:"Mixed ordinary line"}]);
 });
 
 test('reserved resources forbid quantity, identity, unit, remove, raw snapshot and conversion fields even when values match',()=>{
-  const state=ready();for(const extra of [{quantity:1},{unit:'个'},{itemId:'bagel'},{name:'贝果'},{remove:false},{gramsPerUnit:86},{fromPlannedLineId:'bagel-line'},{nutritionSnapshot:{}}])reject(state,[{...rows()[0],...extra}]);
+  const state=ready();for(const extra of [{quantity:1},{unit:'个'},{itemId:'bagel'},{name:"Bagel"},{remove:false},{gramsPerUnit:86},{fromPlannedLineId:'bagel-line'},{nutritionSnapshot:{}}])reject(state,[{...rows()[0],...extra}]);
   reject(state,[{...rows()[0],sourceText:''}]);const partial=rows()[0];delete partial.nutrition.protein;reject(state,[partial]);
-  reject(state,[{id:PREFIX+'a-bagel',sourceText:'没有完整nutrition'}]);
+  reject(state,[{id:PREFIX+'a-bagel',sourceText:"Complete nutrition is missing"}]);
 });
 
 test('resources must exist in the exact target meal and fit the old100-character ID limit without truncation',()=>{
@@ -85,7 +85,7 @@ test('active and pending planned IDs that collide with the complete reserved res
 });
 
 test('normal planned patches and prose containing resource-looking text retain their original planned-only meaning',()=>{
-  const state=ready();const after=mutate(state,'patch_meal_plan',{planId:'day',mode:'apply',confirmed:true,mealPatches:[{id:'dinner',itemPatches:[{id:'veg-line',nutrition:rows()[1].nutrition,sourceText:'原话中写着 actual-nutrition:a-veg，作为原话保存，不是命令'}]}]});
+  const state=ready();const after=mutate(state,'patch_meal_plan',{planId:'day',mode:'apply',confirmed:true,mealPatches:[{id:'dinner',itemPatches:[{id:'veg-line',nutrition:rows()[1].nutrition,sourceText:"Original text contains actual-nutrition:a-veg; preserve it as text, not a command"}]}]});
   assert.deepEqual(actual(after,'a-veg'),actual(state,'a-veg'));assert.equal(actual(after,'a-veg').nutritionCorrectionHistory,undefined);
   assert.equal(dinner(after).plannedItems[1].nutritionSnapshot.nutrition.kcal,47);assert.deepEqual(after.items,state.items);
 });

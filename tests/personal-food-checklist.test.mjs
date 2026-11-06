@@ -6,7 +6,7 @@ import { intakePlanFingerprint } from '../lib/intake-draft.mjs';
 
 const AT='2026-10-26T16:00:00.000Z';let seq=0;
 const mutate=(state,action,fields={})=>applyMutation(state,{action,operationId:'personal-test-'+(++seq),expectedRevision:state.revision,...fields},AT);
-function fixture() {return mutate({schemaVersion:1,revision:0,updatedAt:AT,preferences:[],events:[],operationIds:[],plans:[],items:[validateItem({id:'food',name:'食物',category:'prepared',quantity:1000,unit:'g'},AT)]},'save_meal_plan_draft',{plan:{id:'daily-food-2026-10-26',date:'2026-10-26',title:'个人清单',meals:[{id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'food-l',itemId:'food',quantity:100}]}],supplementDoses:[]}});}
+function fixture() {return mutate({schemaVersion:1,revision:0,updatedAt:AT,preferences:[],events:[],operationIds:[],plans:[],items:[validateItem({id:'food',name:"Food",category:'prepared',quantity:1000,unit:'g'},AT)]},'save_meal_plan_draft',{plan:{id:'daily-food-2026-10-26',date:'2026-10-26',title:'个人清单',meals:[{id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'food-l',itemId:'food',quantity:100}]}],supplementDoses:[]}});}
 const plan=state=>state.plans[0];
 const mark=(state,checked,fields={})=>mutate(state,'set_food_personal_check',{planId:plan(state).id,mealId:'lunch',lineIds:['food-l'],checked,...fields});
 
@@ -29,7 +29,7 @@ test('personal checked and unchecked never write actuals, quantities, accounting
 
 test('completed real meals and saved intake drafts do not infer or block personal marks',()=>{
   let state=fixture();
-  state=mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:'用户明确报告吃完'});
+  state=mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:"The user explicitly reported completion"});
   assert.equal(isPersonalFoodChecked(plan(state),'lunch','food-l'),false);
   state=mutate(state,'save_intake_draft',{planId:plan(state).id,expectedDraftVersion:null,draft:{id:'pending',baseFingerprint:intakePlanFingerprint(plan(state),state.items),consumed:[],transfers:[],completedMealIds:[]}});
   const before=structuredClone(state);
@@ -41,7 +41,7 @@ test('completed real meals and saved intake drafts do not infer or block persona
 test('personal marks survive menu replacement with stable IDs and stale or unknown lines fail atomically',()=>{
   let state=mark(fixture(),true);
   const marks=structuredClone(plan(state).personalFoodChecks);
-  state=mutate(state,'save_meal_plan_draft',{plan:{id:plan(state).id,date:plan(state).date,title:'只改数量',meals:[{id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'food-l',itemId:'food',quantity:120}]}],supplementDoses:[]}});
+  state=mutate(state,'save_meal_plan_draft',{plan:{id:plan(state).id,date:plan(state).date,title:'只改数量',meals:[{id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'food-l',itemId:'food',quantity:120}]}],supplementDoses:[]}});
   assert.deepEqual(plan(state).personalFoodChecks,marks);
   assert.equal(state.items[0].quantity,1000);
   const before=structuredClone(state);

@@ -11,13 +11,13 @@ function mutate(state, action, payload) {
   return applyMutation(state, { action, ...payload, expectedRevision: state.revision, operationId: `${action}-${state.revision}` }, NOW);
 }
 function foodPlan(id, date) {
-  return { id, date, title: '已确认三餐', meals: [{ id: 'lunch', slot: 'lunch', title: '午餐',
+  return { id, date, title: '已确认三餐', meals: [{ id: 'lunch', slot: 'lunch', title: "Lunch",
     plannedItems: [{ id: 'main', itemId: 'food', quantity: 2 }] }], supplementDoses: [] };
 }
 function fixture() {
   const items = [
-    { id: 'food', name: '主餐', category: 'prepared', unit: '袋', quantity: 20, kcal: 100 },
-    { id: 'fish', name: '鱼油', category: 'supplement', unit: '粒', quantity: 30, kcal: 10 },
+    { id: 'food', name: "Main dish", category: 'prepared', unit: '袋', quantity: 20, kcal: 100 },
+    { id: 'fish', name: "Fish oil", category: 'supplement', unit: '粒', quantity: 30, kcal: 10 },
     { id: 'beta', name: 'Beta', category: 'supplement', unit: 'g', quantity: 100, kcal: 0 },
   ].map(({ kcal, ...item }) => validateItem({ ...item, status: 'available', nutrition: {
     basisAmount: 1, basisUnit: item.unit, kcal, protein: 0, carbs: 0, fat: 0, source: 'label',
@@ -86,7 +86,7 @@ test('stored routine takes precedence over newer meal schedules and reference co
   assert.equal(reference.routineSource, 'saved');
   assert.equal(reference.doses.length, 2);
   assert.equal(reference.doses[1].trainingDayOnly, true);
-  assert.match(reference.instructions, /没有三餐菜单也可按日期/);
+  assert.match(reference.instructions, /viewed by date and explicitly checked without food meals/);
   for (const dose of reference.doses) for (const key of ['actualEntries', 'actualTime', 'checked', 'reportHistory', 'state'])
     assert.equal(Object.hasOwn(dose, key), false, key);
   assert.deepEqual(state.supplementRoutine, saved.supplementRoutine);
@@ -157,6 +157,6 @@ test('MCP tools support routine save and date-based checks without requiring a m
   assert.match(dietTools.find(tool => tool.name === 'read_diet_records').description, /canonical planId/);
   const draft = dietTools.find(tool => tool.name === 'save_food_plan_draft').description;
   assert.match(draft, /canonical planId/);
-  assert.match(draft, /保存后当天立即可见/);
-  assert.match(draft, /菜单保存、采用、修改均不预留或扣库存/);
+  assert.match(draft, /Saved menus are visible\/editable immediately/);
+  assert.match(draft, /Saving, adopting and editing menus never reserves or consumes food/);
 });

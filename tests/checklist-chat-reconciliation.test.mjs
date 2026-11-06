@@ -6,7 +6,7 @@ import { buildChecklistAction } from '../lib/checklist-actions.mjs';
 const NOW='2026-10-27T16:00:00.000Z', LATER='2026-10-27T22:00:00.000Z';
 const clone=value=>structuredClone(value);
 let sequence=0;
-const nutrition=(unit='g')=>({basisAmount:100,basisUnit:unit,kcal:150,protein:10,carbs:20,fat:3,source:'estimate',sourceText:'本机验证营养估值'});
+const nutrition=(unit='g')=>({basisAmount:100,basisUnit:unit,kcal:150,protein:10,carbs:20,fat:3,source:'estimate',sourceText:"Local estimated nutrition fixture"});
 const item=(id,unit='g',extra={})=>validateItem({id,name:id,category:id==='creatine'?'supplement':'prepared',quantity:1000,unit,
   nutrition:nutrition(unit==='袋'?'g':unit),...extra},NOW);
 function mutate(state,action,fields={},at=NOW) {
@@ -17,17 +17,17 @@ const lunch=state=>plan(state).meals[0];
 const stock=(state,id='rice')=>state.items.find(item=>item.id===id).quantity;
 function fixture() {
   return mutate({schemaVersion:1,revision:0,updatedAt:NOW,items:[item('rice'),item('milk','ml'),item('beef','袋',{quantity:10,gramsPerUnit:132}),item('creatine')],
-    events:[],operationIds:[],preferences:[],plans:[]},'save_meal_plan_draft',{plan:{id:'daily-food-2026-10-27',date:'2026-10-27',title:'本机验证勾选与Chat对账',
+    events:[],operationIds:[],preferences:[],plans:[]},'save_meal_plan_draft',{plan:{id:'daily-food-2026-10-27',date:'2026-10-27',title:"Local checklist and Chat reconciliation fixture",
       meals:[
-        {id:'lunch',slot:'lunch',title:'午餐',plannedItems:[{id:'rice-line',itemId:'rice',quantity:100,unit:'g'},{id:'milk-line',itemId:'milk',quantity:150,unit:'ml'}]},
-        {id:'dinner',slot:'dinner',title:'晚餐',plannedItems:[{id:'beef-line',itemId:'beef',quantity:1,unit:'袋'}]},
+        {id:'lunch',slot:'lunch',title:"Lunch",plannedItems:[{id:'rice-line',itemId:'rice',quantity:100,unit:'g'},{id:'milk-line',itemId:'milk',quantity:150,unit:'ml'}]},
+        {id:'dinner',slot:'dinner',title:"Dinner",plannedItems:[{id:'beef-line',itemId:'beef',quantity:1,unit:'袋'}]},
       ],supplementDoses:[{id:'creatine-am',itemId:'creatine',plannedQuantity:5,timingSlot:'breakfast'}]}});
 }
 function check(state,action) {
   const command=buildChecklistAction(plan(state),state.items,action,{draftId:'checkbox-gesture-'+(++sequence)});
   return command.noChange?state:mutate(state,'apply_checklist_intake',{planId:plan(state).id,draft:command.draft,expectedDraftVersion:null});
 }
-const complete=(state,fields={})=>mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:'用户说午餐已按当前计划吃完',...fields},LATER);
+const complete=(state,fields={})=>mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:"The user finished lunch according to the current plan",...fields},LATER);
 const reconciliationError=error=>error.status===409&&error.code==='ACTUAL_INTAKE_RECONCILIATION_REQUIRED';
 
 test('UI partial intake followed by Chat planned completion settles only the missing portion using the same actual ID',()=>{
@@ -51,7 +51,7 @@ test('UI whole meal check followed by repeated Chat completion never charges tha
   state=complete(state);
   assert.deepEqual(state.items,amounts);
   assert.deepEqual(lunch(state).actualEntries.map(entry=>entry.id),ids);
-  const command={action:'record_meal_intake',planId:plan(state).id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:'用户说午餐已按当前计划吃完',operationId:'repeat-after-ui',expectedRevision:state.revision};
+  const command={action:'record_meal_intake',planId:plan(state).id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:"The user finished lunch according to the current plan",operationId:'repeat-after-ui',expectedRevision:state.revision};
   const retry=applyMutation(state,command,LATER);
   assert.strictEqual(retry,state);
   assert.strictEqual(applyMutation(retry,command,LATER),state);
@@ -59,14 +59,14 @@ test('UI whole meal check followed by repeated Chat completion never charges tha
 
 test('a new Chat ID cannot append a cumulative portion already represented by a checkbox; the whole action is atomic',()=>{
   const state=check(fixture(),{type:'set_eaten',mealId:'lunch',lineIds:['rice-line'],quantity:60}), before=clone(state);
-  const duplicate={mealId:'lunch',mode:'complete',sourceText:'午餐累计吃了100g米饭，喝了150ml奶',entries:[
-    {id:'new-chat-milk',itemId:'milk',quantity:150,unit:'ml',sourceText:'午餐累计150ml'},
-    {id:'new-chat-rice',itemId:'rice',quantity:100,unit:'g',sourceText:'午餐累计100g'},
+  const duplicate={mealId:'lunch',mode:'complete',sourceText:"Cumulative lunch: 100 g rice and 150 mL milk",entries:[
+    {id:'new-chat-milk',itemId:'milk',quantity:150,unit:'ml',sourceText:"Cumulative lunch: 150 mL"},
+    {id:'new-chat-rice',itemId:'rice',quantity:100,unit:'g',sourceText:"Cumulative lunch: 100 g"},
   ]};
   assert.throws(()=>mutate(state,'record_meal_intake',{planId:plan(state).id,...duplicate}),reconciliationError);
   assert.deepEqual(state,before); assert.equal(stock(state),940); assert.equal(stock(state,'milk'),1000);
   assert.throws(()=>mutate(state,'record_meal_intake',{planId:plan(state).id,meals:[
-    {mealId:'dinner',mode:'complete',matchesPlannedFood:true,sourceText:'晚餐已吃完'},duplicate,
+    {mealId:'dinner',mode:'complete',matchesPlannedFood:true,sourceText:"Dinner completed"},duplicate,
   ]}),reconciliationError);
   assert.deepEqual(state,before,'a later ambiguous meal cannot leave an earlier meal partially settled');
 });
@@ -75,7 +75,7 @@ test('explicit correction reuses the checkbox actual ID and applies only the inc
   let state=check(fixture(),{type:'set_eaten',mealId:'lunch',lineIds:['rice-line'],quantity:60});
   const id=lunch(state).actualEntries[0].id;
   const correct=(current,quantity)=>mutate(current,'record_meal_intake',{planId:plan(current).id,mealId:'lunch',mode:'correct',
-    entries:[{id,itemId:'rice',quantity,unit:'g',sourceText:'用户核对后累计实际'+quantity+'g'}]},LATER);
+    entries:[{id,itemId:'rice',quantity,unit:'g',sourceText:"Cumulative actual quantity after user verification"+quantity+'g'}]},LATER);
   state=correct(state,80); assert.equal(stock(state),920);
   state=correct(state,40); assert.equal(stock(state),960);
   assert.equal(lunch(state).actualEntries.length,1);
@@ -87,7 +87,7 @@ test('explicit correction reuses the checkbox actual ID and applies only the inc
 
 test('explicit additional append stays available and retrying its stable actual ID does not consume another serving',()=>{
   let state=check(fixture(),{type:'set_eaten',mealId:'lunch',lineIds:['rice-line'],quantity:60});
-  const fields={planId:plan(state).id,mealId:'lunch',mode:'append',entries:[{id:'genuinely-additional-rice',itemId:'rice',quantity:20,unit:'g',sourceText:'刚才那60g之外又吃了20g'}],sourceText:'明确新增的一份，不是累计总量'};
+  const fields={planId:plan(state).id,mealId:'lunch',mode:'append',entries:[{id:'genuinely-additional-rice',itemId:'rice',quantity:20,unit:'g',sourceText:"Ate another 20 g in addition to the previous 60 g"}],sourceText:"An explicit additional portion, not a cumulative total"};
   state=mutate(state,'record_meal_intake',fields,LATER);
   assert.equal(stock(state),920);
   assert.equal(lunch(state).actualEntries.reduce((total,entry)=>total+entry.quantity,0),80);
@@ -101,9 +101,9 @@ test('gram and package representations of the same food require reconciliation i
   const actual=plan(state).meals[1].actualEntries[0], before=clone(state);
   assert.equal(actual.quantity,.5); assert.equal(actual.unit,'袋');
   assert.throws(()=>mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'dinner',mode:'complete',
-    entries:[{id:'new-chat-beef-grams',itemId:'beef',quantity:132,unit:'g',sourceText:'累计吃完这一袋132g牛肉'}]}),reconciliationError);
+    entries:[{id:'new-chat-beef-grams',itemId:'beef',quantity:132,unit:'g',sourceText:"Finished this 132 g bag of beef"}]}),reconciliationError);
   assert.deepEqual(state,before);
-  state=mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'dinner',mode:'complete',matchesPlannedFood:true,sourceText:'牛肉按原计划1袋吃完'},LATER);
+  state=mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'dinner',mode:'complete',matchesPlannedFood:true,sourceText:"Finished the planned one bag of beef"},LATER);
   assert.equal(stock(state,'beef'),9);
   assert.equal(plan(state).meals[1].actualEntries[0].id,actual.id);
   assert.equal(plan(state).meals[1].actualEntries[0].quantity,1);
@@ -112,11 +112,11 @@ test('gram and package representations of the same food require reconciliation i
 test('canonical external food names cannot bypass the cumulative-portion guard through whitespace changes',()=>{
   let state=fixture();
   state=mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'lunch',mode:'append',entries:[
-    {id:'outside-yogurt-first',itemId:null,name:'外食 酸奶',quantity:60,unit:'g',sourceText:'实际先吃60g外食酸奶'},
+    {id:'outside-yogurt-first',itemId:null,name:"External yogurt",quantity:60,unit:'g',sourceText:"Initially ate 60 g of external yogurt"},
   ]});
   const before=clone(state);
   assert.throws(()=>mutate(state,'record_meal_intake',{planId:plan(state).id,mealId:'lunch',mode:'complete',entries:[
-    {id:'outside-yogurt-new-id',itemId:null,name:'外食酸奶',quantity:100,unit:'g',sourceText:'外食酸奶累计100g'},
+    {id:'outside-yogurt-new-id',itemId:null,name:"External yogurt",quantity:100,unit:'g',sourceText:"Cumulative external yogurt: 100 g"},
   ]}),reconciliationError);
   assert.deepEqual(state,before);
 });

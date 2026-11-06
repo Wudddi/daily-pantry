@@ -4,8 +4,7 @@ import { foodPreferencesContext, foodPreferenceMutationReceipt, preferenceWorkfl
 import { applyMutation } from '../lib/inventory.mjs';
 
 const AT = '2026-10-26T14:00:00.000Z';
-// All preferences and human quotes in this fixture are fictional examples.
-const original = () => ({ schemaVersion: 1, revision: 12, updatedAt: AT, items: [], plans: [], events: [], operationIds: [], preferences: ['演示菜单优先使用示例食材A。'] });
+const original = () => ({ schemaVersion: 1, revision: 12, updatedAt: AT, items: [], plans: [], events: [], operationIds: [], preferences: ['不主动安排米饭和意面。'] });
 function change(state, id, preferences) {
   return applyMutation(state, { action: 'preferences', operationId: id, expectedRevision: state.revision,
     preferences, sourceDate: '2026-10-26', reason: '用户明确长期要求' }, AT);
@@ -21,13 +20,13 @@ test('legacy preferences stay complete and detached without inventing a modifica
   assert.equal(context.preferencesLastChangedRevision, null);
   assert.equal(context.preferenceWorkflow, preferenceWorkflowInstructions);
   assert.match(context.preferenceWorkflow, /patch_food_preferences/);
-  assert.match(context.preferenceWorkflow, /逐条比较/);
+  assert.match(context.preferenceWorkflow, /adds nonduplicates, replaces exact old text, and preserves unrelated rules/);
   context.preferences.push('只改调用方响应');
   assert.deepEqual(state, before);
 });
 
 test('history metadata describes the last preference change rather than the last inventory edit', () => {
-  const state = change(original(), 'persist-habit', ['演示菜单优先使用示例食材A。', '示例午餐包含一份示例蔬菜。']);
+  const state = change(original(), 'persist-habit', ['不主动安排米饭和意面。', '上班午餐带饭。']);
   state.revision += 5;
   const before = structuredClone(state), context = foodPreferencesContext(state);
   assert.equal(context.preferencesRevision, 18);
@@ -37,8 +36,8 @@ test('history metadata describes the last preference change rather than the last
 });
 
 test('mutation receipt resolves an original operation after later changes and never exposes mutable history', () => {
-  const once = change(original(), 'first-change', ['演示菜单优先使用示例食材A。', '示例午餐包含一份示例蔬菜。']);
-  const latest = change(once, 'second-change', ['演示菜单优先使用示例食材A。', '示例午餐包含一份示例蔬菜。', '示例晚餐不额外增加示例加餐。']);
+  const once = change(original(), 'first-change', ['不主动安排米饭和意面。', '上班午餐带饭。']);
+  const latest = change(once, 'second-change', ['不主动安排米饭和意面。', '上班午餐带饭。', '不需要训练前加餐。']);
   const before = structuredClone(latest), receipt = foodPreferenceMutationReceipt(latest, 'first-change');
   assert.equal(receipt.operation, 'preferences_saved_or_already_current');
   assert.equal(receipt.operationFound, true);
@@ -67,7 +66,7 @@ test('a no-op duplicate habit has no historical write and no stock effect', () =
 });
 
 test('durable no-op operation is found without inventing a preference change or modification date', () => {
-  const sourceText = '合成示例：以后菜单优先使用示例食材A。';
+  const sourceText = '以后不要主动安排米饭和意面。';
   const state = applyMutation(original(), { action: 'patch_preferences', operationId: 'current-already', expectedRevision: 12,
     confirmed: true, add: original().preferences, sourceDate: '2026-10-26', sourceText, reason: '现有规则已覆盖' }, AT);
   const before = structuredClone(state), receipt = foodPreferenceMutationReceipt(state, 'current-already');
@@ -85,14 +84,14 @@ test('durable no-op operation is found without inventing a preference change or 
 });
 
 test('the incremental mutation receipt includes the human quote behind the durable change', () => {
-  const sourceText = '合成示例：以后每份示例午餐都附带示例蔬菜，明确另选时例外。';
+  const sourceText = '以后上班日都带午饭，除非我说出去吃。';
   const state = applyMutation(original(), { action: 'patch_preferences', operationId: 'human-rule', expectedRevision: 12,
-    confirmed: true, add: ['示例午餐附带示例蔬菜，明确另选时例外。'], sourceDate: '2026-10-26', sourceText }, AT);
+    confirmed: true, add: ['上班日带午饭，明确外食时例外。'], sourceDate: '2026-10-26', sourceText }, AT);
   const receipt = foodPreferenceMutationReceipt(state, 'human-rule');
   assert.equal(receipt.operationFound, true);
   assert.equal(receipt.preferenceChange.sourceText, sourceText);
   assert.equal(receipt.preferenceOperation.sourceText, sourceText);
-  assert.deepEqual(receipt.preferences, ['演示菜单优先使用示例食材A。', '示例午餐附带示例蔬菜，明确另选时例外。']);
+  assert.deepEqual(receipt.preferences, ['不主动安排米饭和意面。', '上班日带午饭，明确外食时例外。']);
 });
 
 test('all sixty maximum-length strings survive escaping and unreadable collections fail explicitly', () => {

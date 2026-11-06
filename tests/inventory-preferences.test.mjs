@@ -224,7 +224,7 @@ test('restore preserves local preference history and appends the complete replac
   assert.deepEqual(restored.preferenceHistory[1].next, ['来自备份的习惯']);
   const unchanged = apply(restored, 'restore', { items: restored.items, preferences: restored.preferences });
   assert.deepEqual(unchanged.preferenceHistory, restored.preferenceHistory, 'a stock restore with no preference change creates no preference version');
-  assert.throws(() => apply(restored, 'restore', { items: restored.items, preferences: [], preferenceHistory: [] }), /不能由请求覆盖/);
+  assert.throws(() => apply(restored, 'restore', { items: restored.items, preferences: [], preferenceHistory: [] }), /The preference update contains unsupported fields\. Requests cannot overwrite existing version history\./);
 });
 
 test('metadata is narrowly validated and a rejected request never alters the old state', () => {
@@ -290,5 +290,5 @@ test('restoring stock preserves the local event archive and retries never append
   const before = structuredClone(restored);
   assert.strictEqual(applyMutation(restored, payload, NEXT), restored);
   assert.deepEqual(restored, before);
-  assert.throws(() => apply(restored, 'restore', { items: restored.items, preferences: restored.preferences, eventHistory: [] }), /不能由请求覆盖/);
+  assert.throws(() => apply(restored, 'restore', { items: restored.items, preferences: restored.preferences, eventHistory: [] }), /The preference update contains unsupported fields\. Requests cannot overwrite existing version history\./);
 });

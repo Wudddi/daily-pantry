@@ -1,12 +1,14 @@
 # Verification
 
-Sanitized source checked on 2026-10-29 with Node.js 24.22.1:
+The English release was checked on 2026-11-06 using Node.js 24.
 
-- All 772 regression tests passed, with no skipped or failed tests.
-- TypeScript `tsc --noEmit` passed.
-- The Vinext production build completed with the identity-free hosting template.
-- Privacy review replaced imported food/health seeds, personal preference quotations and identifying real batch fixtures; excluded old Git history, runtime storage, production identity, exports and local logs.
+- All 880 regression tests passed, without failures or skips.
+- TypeScript checks passed.
+- Authored English interface and MCP copy passed the automated check; legacy data-protocol keys are exempt and documented.
+- Public export checks passed with synthetic demo seeds and no private hosting identity or runtime data.
+- Existing accounting, actual-intake, draft preservation, recipe portion and concurrency tests remain active.
+- Normal 17-food preparation details fit the existing transport budget. The 77-item inventory fixture fits the existing 96,000-character budget; full original text remains available through item detail reads.
 
-Tests and the build reused the existing installed dependencies through a local ignored dependency link. A separate fresh installation has not been verified in this copy. The added GitHub workflow checks a clean installation, tests, types and build when enabled by repository permissions.
+The desktop browser controller could not reliably identify the current Windows browser URL, so it stopped before interactive English-release QA. This release therefore relies on component interaction tests, static rendering checks, type checking and the production build; no new browser screenshot is claimed. The external Alignerr form was not edited or resubmitted through that stopped controller.
 
-The sanitized UI has not been separately verified in a browser during this preparation. Desktop browser automation was stopped by the environment because it could not reliably establish the current URL. No browser authentication or application questionnaire was automated.
+The GitHub Checks workflow reruns the English-copy check, tests, type checking and build on pushes and pull requests. Check the specific commit's status for its remote result.

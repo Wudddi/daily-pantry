@@ -2,7 +2,7 @@
 
 Daily Pantry is a personal project addressing a recurring problem: assistants lose preferences, suggest unavailable ingredients, or confuse saved plans with actual consumption. The app gives the assistant structured current context and gives the person a compact daily view.
 
-The main engineering challenge is consistent state across editable menus, actual reports, personal checklists, supplement doses, automatic settlement and historical corrections. Current features include inventory and nutrition organization, multi-meal menus, daily ingredient totals, separate supplement routines, weight/training records and MCP tools.
+The main engineering challenge is consistent state across editable menus, actual reports, personal checklists, supplement doses, optional automatic settlement and historical corrections. Current features include inventory and nutrition organization, multi-meal menus, daily ingredient totals, named expandable recipes, whole-dish portions and remaining-food transfers, a searchable inventory picker, separate supplement routines, weight/training records and MCP tools. The application interface and project documentation are in English.
 
 The project has been developed with Codex/ChatGPT assistance. This review copy contains synthetic demo data, no original private history and no claim of prior Claude Code development.
 

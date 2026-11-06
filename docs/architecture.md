@@ -17,4 +17,10 @@ Inventory and health use separate user-isolated R2 JSON objects. Commands valida
 
 Initial assistant reads provide complete current preferences and inventory in bounded pages. Small edits use meal-scoped contexts and stable ID patches. Large original labels and historical records are read by exact ID and offset. UI and tool receipts share nutrition aggregation.
 
-Production identity and data are absent. There is no SQL migration requirement; demo seeds initialize only a new user's empty storage. Hosting-specific authentication and unattended scheduling require their own trusted integration. History partitioning is planned, not yet implemented.
+The public source export excludes production identity and data. There is no SQL migration requirement; fictional demo seeds initialize only a new user's empty storage. Existing users retain their stored records. Hosting-specific authentication and unattended scheduling require their own trusted integration. History partitioning is planned, not yet implemented.
+
+## Recipe portions and additions
+
+Named recipe groups reference stable planned ingredient-line IDs rather than creating another food or stock object. A server-owned one-portion basis supports absolute half, whole and custom portions. Moving a fraction of a dish uses each ingredient's remaining quantity, preserving daily totals, distinct same-SKU lines and actual-intake anchors.
+
+The inventory picker appends a standalone planned line with a frozen nutrition snapshot. A valid saved intake draft keeps its entered quantities and transfers while its plan baseline is rebased under a version check. A stale draft remains stale. Portion changes, transfers and menu additions do not report eating or debit stock.

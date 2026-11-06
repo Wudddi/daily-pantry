@@ -5,11 +5,11 @@ import { dietContext, getDailySupplementView, getSupplementRoutine } from '../li
 
 const NOW = '2026-10-19T13:00:00.000Z';
 function fixture() {
-  const items = [{ id: 'food', name: '主餐', category: 'prepared', quantity: 20, unit: '袋' }, { id: 'fish', name: '鱼油', category: 'supplement', quantity: 30, unit: '粒' }, { id: 'beta', name: 'Beta', category: 'supplement', quantity: 100, unit: 'g' }, { id: 'mag', name: '镁', category: 'supplement', quantity: null, unit: '片' }].map(item => validateItem({ ...item, nutrition: { basisAmount: 1, basisUnit: item.unit, kcal: null, protein: null, carbs: null, fat: null, source: 'unknown' } }, NOW));
+  const items = [{ id: 'food', name: "Main dish", category: 'prepared', quantity: 20, unit: '袋' }, { id: 'fish', name: "Fish oil", category: 'supplement', quantity: 30, unit: '粒' }, { id: 'beta', name: 'Beta', category: 'supplement', quantity: 100, unit: 'g' }, { id: 'mag', name: "Magnesium", category: 'supplement', quantity: null, unit: '片' }].map(item => validateItem({ ...item, nutrition: { basisAmount: 1, basisUnit: item.unit, kcal: null, protein: null, carbs: null, fat: null, source: 'unknown' } }, NOW));
   return { schemaVersion: 1, revision: 0, updatedAt: NOW, items, plans: [], events: [], preferences: [], operationIds: [] };
 }
 function mutate(state, action, payload = {}, operationId = `${action}-${state.revision}`) { return applyMutation(state, { action, operationId, expectedRevision: state.revision, ...payload }, NOW); }
-function foodPlan(id, date, supplementDoses = []) { return { id, date, title: '三餐计划', meals: [{ id: 'lunch', slot: 'lunch', title: '午饭', plannedItems: [{ id: 'food-line', itemId: 'food', quantity: 2 }] }], supplementDoses }; }
+function foodPlan(id, date, supplementDoses = []) { return { id, date, title: "Three-meal plan", meals: [{ id: 'lunch', slot: 'lunch', title: "Lunch", plannedItems: [{ id: 'food-line', itemId: 'food', quantity: 2 }] }], supplementDoses }; }
 const entries = () => [{ id: 'oil', itemId: 'fish', plannedQuantity: 1, timingSlot: 'breakfast', plannedMealId: 'lunch' }, { id: 'beta-am', itemId: 'beta', plannedQuantity: 1.6, timingSlot: 'breakfast' }, { id: 'beta-pre', itemId: 'beta', plannedQuantity: 1.6, timingSlot: 'pre_workout', trainingDayOnly: true }, { id: 'mag', itemId: 'mag', plannedQuantity: null, timingSlot: 'bedtime', requirement: 'label_pending' }];
 function source(saved = true) {
   let state = mutate(fixture(), 'save_meal_plan_draft', { plan: foodPlan('source', '2026-10-18', entries()) });
@@ -23,7 +23,7 @@ const daily = (state, doseId, checked = true, date = '2026-10-20', operationId) 
 test('saving a reusable routine strips every actual field and meal link without changing inventory, source plan or historical facts', () => {
   let state = source(false);
   state = mutate(state, 'set_supplement_check', { planId: 'source', doseId: 'oil', checked: true });
-  state = mutate(state, 'record_supplement_intake', { planId: 'source', doseId: 'oil', actualTime: '08:15', sourceText: '昨天08:15已服，不能复制成今天实际' });
+  state = mutate(state, 'record_supplement_intake', { planId: 'source', doseId: 'oil', actualTime: '08:15', sourceText: "Taken yesterday at 08:15; cannot be copied as today's actual intake" });
   const before = structuredClone(state);
   state = mutate(state, 'save_supplement_routine', { sourcePlanId: 'source', confirmed: true });
   assert.deepEqual(state.items, before.items);
@@ -44,7 +44,7 @@ test('browsing many menu-less dates returns a complete unchecked routine without
     assert.equal(view.plan.supplementDoses.length, 4);
     assert.deepEqual(view.plan.meals, []);
     assert.ok(view.plan.supplementDoses.every(dose => dose.actualEntries.length === 0 && dose.actualTime === null));
-    view.plan.supplementDoses[0].instruction = '修改投影不改原数据';
+    view.plan.supplementDoses[0].instruction = "Editing the projection does not edit original data";
   }
   assert.deepEqual(state, before);
 });
@@ -70,7 +70,7 @@ test('first check without a menu creates one actual-only owner and debits only t
 test('each date has independent check state and stable unique actual IDs while old source time is never copied', () => {
   let state = source();
   state = mutate(state, 'set_supplement_check', { planId: 'source', doseId: 'oil', checked: true });
-  state = mutate(state, 'record_supplement_intake', { planId: 'source', doseId: 'oil', actualTime: '08:15', sourceText: '旧日实际时间' });
+  state = mutate(state, 'record_supplement_intake', { planId: 'source', doseId: 'oil', actualTime: '08:15', sourceText: "Historical actual time" });
   state = daily(state, 'oil');
   const first = structuredClone(owner(state).supplementDoses[0]);
   const unchecked = getDailySupplementView(state, '2026-10-21').plan;
@@ -117,7 +117,7 @@ test('an existing food owner keeps its original ID, actual evidence and reservat
   state = mutate(state, 'save_meal_plan_draft', { plan: foodPlan('native', '2026-10-20', [{ id: 'old-oil-id', itemId: 'fish', plannedQuantity: 1, timingSlot: 'breakfast' }]) });
   state = mutate(state, 'commit_meal_plan', { planId: 'native', confirmed: true });
   state = mutate(state, 'set_supplement_check', { planId: 'native', doseId: 'old-oil-id', checked: true });
-  state = mutate(state, 'record_supplement_intake', { planId: 'native', doseId: 'old-oil-id', actualTime: '08:15', sourceText: '今天原有实服' });
+  state = mutate(state, 'record_supplement_intake', { planId: 'native', doseId: 'old-oil-id', actualTime: '08:15', sourceText: "Today's existing actual dose" });
   const before = structuredClone(state), view = getDailySupplementView(state, '2026-10-20');
   assert.equal(view.plan.supplementDoses.filter(dose => dose.itemId === 'fish').length, 1);
   assert.equal(view.plan.supplementDoses.find(dose => dose.itemId === 'fish').id, 'old-oil-id');
@@ -214,7 +214,7 @@ test('multiple legacy same-day actual owners are visible as an issue and reject 
   const duplicate = structuredClone(owner(state));
   duplicate.id = 'second-legacy-owner';
   duplicate.supplementDoses[0].actualEntries[0].id = 'different-old-actual';
-  duplicate.supplementDoses[0].actualEntries[0].sourceText = '另一个旧记录的原话，不能丢失或猜测合并';
+  duplicate.supplementDoses[0].actualEntries[0].sourceText = "Another historical record's source text must not be lost or merged by assumption";
   state.plans.push(duplicate);
   const before = structuredClone(state);
   assert.ok(getDailySupplementView(state, '2026-10-20').issues.some(issue => issue.code === 'DAILY_SUPPLEMENT_OWNER_CONFLICT'));
@@ -252,6 +252,6 @@ test('AI context marks a supplement-only ledger and explains canonical-ID reuse 
   assert.equal(record.supplementOnly, true);
   assert.equal(record.supplementAccounting, 'actual_only');
   assert.deepEqual(record.meals, []);
-  assert.ok(context.instructions.some(text => text.includes('canonical planId') && text.includes('稳定的mealId') && text.includes('doseId')));
-  assert.ok(context.instructions.some(text => text.includes('supplementOnly') && text.includes('不能遗漏或重建三餐')));
+  assert.ok(context.instructions.some(text => text.includes('canonical planId') && text.includes('stable mealId') && text.includes('doseId')));
+  assert.ok(context.instructions.some(text => text.includes('supplementOnly') && text.includes('do not omit or reconstruct its meals')));
 });

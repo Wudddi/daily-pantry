@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { nutritionFactor, planNutritionTotals } from '../lib/diet-nutrition.mjs';
 
 function snapshot(nutrition = {}, extra = {}) {
-  return { name: '测试食物', unit: 'g', gramsPerUnit: null, ingredients: '', supplementFacts: '', nutrition: { basisAmount: 100, basisUnit: 'g', kcal: null, protein: null, carbs: null, fat: null, source: 'label', ...nutrition }, ...extra };
+  return { name: "Test food", unit: 'g', gramsPerUnit: null, ingredients: '', supplementFacts: '', nutrition: { basisAmount: 100, basisUnit: 'g', kcal: null, protein: null, carbs: null, fat: null, source: 'label', ...nutrition }, ...extra };
 }
 function supplement(nutrition, quantity = 1) {
-  return { nutritionSnapshot: snapshot({ basisAmount: 1, basisUnit: '粒', ...nutrition }, { name: '测试补给', unit: '粒' }), plannedQuantity: quantity, unit: '粒' };
+  return { nutritionSnapshot: snapshot({ basisAmount: 1, basisUnit: '粒', ...nutrition }, { name: "Test supplement", unit: '粒' }), plannedQuantity: quantity, unit: '粒' };
 }
 const byKey = totals => Object.fromEntries(totals.map(total => [total.key, total]));
 

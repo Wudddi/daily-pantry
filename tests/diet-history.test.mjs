@@ -5,8 +5,8 @@ import { validateDietHistory } from '../lib/diet-history.mjs';
 import { readDietRecords, dietContext } from '../lib/diet.mjs';
 const NOW = '2026-10-18T12:00:00Z';
 const LATER = '2026-10-18T13:00:00Z';
-function state() { return { schemaVersion: 1, revision: 0, updatedAt: NOW, items: [validateItem({ id: 'current', name: '当前库存', category: 'bread', quantity: 10, unit: '片', status: 'pending' }, NOW)], plans: [], preferences: [], events: [], operationIds: [] }; }
-function record(overrides = {}) { return { id: 'history-17', date: '2026-10-17', title: '历史最终版', confirmation: 'partial_report', meals: [{ id: 'lunch', name: '午餐', status: 'reported_completed', plannedTime: '12:00', items: [{ id: 'old-food', name: '已不存在库存的食材', inventoryItemId: 'missing-old-batch', quantity: 100, plannedQuantity: 100, actualQuantity: null, unit: 'g', sourceText: '原文：只说吃了午饭，未说克数' }] }], supplements: [{ id: 'fish', name: '鱼油', quantity: 1, plannedQuantity: 1, actualQuantity: null, unit: '粒', status: 'reported_completed', sourceText: '午饭后吃了鱼油' }], planSourceText: '完整计划\n保留空行与原文 ', executionSourceText: '用户实际原话', sourceRefs: [{ conversationId: 'chat-id', messageKey: 'message-key', date: '2026-10-17', kind: 'document', text: '截图仅证明终稿，不证明实际吃过' }], ...overrides }; }
+function state() { return { schemaVersion: 1, revision: 0, updatedAt: NOW, items: [validateItem({ id: 'current', name: "Current inventory", category: 'bread', quantity: 10, unit: '片', status: 'pending' }, NOW)], plans: [], preferences: [], events: [], operationIds: [] }; }
+function record(overrides = {}) { return { id: 'history-17', date: '2026-10-17', title: "Historical final version", confirmation: 'partial_report', meals: [{ id: 'lunch', name: "Lunch", status: 'reported_completed', plannedTime: '12:00', items: [{ id: 'old-food', name: "Ingredient no longer in inventory", inventoryItemId: 'missing-old-batch', quantity: 100, plannedQuantity: 100, actualQuantity: null, unit: 'g', sourceText: "Original: only lunch was reported, without grams" }] }], supplements: [{ id: 'fish', name: "Fish oil", quantity: 1, plannedQuantity: 1, actualQuantity: null, unit: '粒', status: 'reported_completed', sourceText: "Took fish oil after lunch" }], planSourceText: "Complete plan\nPreserve blank lines and source text ", executionSourceText: "Original user actual-intake text", sourceRefs: [{ conversationId: 'chat-id', messageKey: 'message-key', date: '2026-10-17', kind: 'document', text: "A screenshot proves the final plan, not actual consumption" }], ...overrides }; }
 function apply(s, r, op = `history-${s.revision}`) { return applyMutation(s, { action: 'import_diet_history', record: r, operationId: op, expectedRevision: s.revision }, NOW); }
 
 test('historical completed records never reserve, consume, revive or recount any current inventory', () => {
@@ -17,7 +17,7 @@ test('historical completed records never reserve, consume, revive or recount any
   assert.equal(after.revision, 1);
   assert.equal(after.dietHistory[0].inventoryEffect, 'none');
   assert.equal(after.dietHistory[0].recordType, 'diet_history');
-  assert.match(after.events.at(-1).detail, /库存变化为0/);
+  assert.match(after.events.at(-1).detail, /(?:; historical archive only, inventory change: 0\.| historical diet records; inventory change: 0\.|Historical content is unchanged; inventory change: 0\.)/);
   assert.equal(after.dietHistory[0].planSourceText, record().planSourceText);
 });
 
@@ -39,14 +39,14 @@ test('stable record and operation retries are idempotent, while a reused operati
   const after = applyMutation(state(), payload, NOW);
   assert.strictEqual(applyMutation(after, { ...payload, expectedRevision: 999 }, LATER), after);
   assert.strictEqual(apply(after, record(), 'new-op-same-record'), after);
-  assert.throws(() => applyMutation(after, { ...payload, record: record({ executionSourceText: '不同实际原话' }) }, LATER), e => e.status === 409 && e.code === 'OPERATION_ID_CONFLICT');
+  assert.throws(() => applyMutation(after, { ...payload, record: record({ executionSourceText: "Different actual source text" }) }, LATER), e => e.status === 409 && e.code === 'OPERATION_ID_CONFLICT');
   assert.equal(after.dietHistory.length, 1);
 });
 
 test('historical corrections preserve prior complete versions and never change stock after an absolute recount', () => {
   const original = apply(state(), record());
   const recounted = applyMutation(original, { action: 'set_quantity', id: 'current', quantity: 3, operationId: 'recount', expectedRevision: original.revision }, LATER);
-  const corrected = apply(recounted, { id: 'history-17', title: '更正标题', meals: [{ ...record().meals[0], actualTime: '13:20' }] });
+  const corrected = apply(recounted, { id: 'history-17', title: "Corrected title", meals: [{ ...record().meals[0], actualTime: '13:20' }] });
   assert.deepEqual(corrected.items, recounted.items);
   assert.equal(corrected.dietHistory[0].meals[0].actualTime, '13:20');
   assert.equal(corrected.dietHistory[0].executionSourceText, original.dietHistory[0].executionSourceText);
@@ -57,7 +57,7 @@ test('historical corrections preserve prior complete versions and never change s
 });
 
 test('whole-day and meal nutrition preserve original estimates and do not derive sums from conflicting source totals', () => {
-  const h = apply(state(), record({ nutrition: { kcal: 2000, protein: 150, source: 'estimate', sourceText: '原Chat总计2000；明细合计不同，保留原文' }, meals: [{ ...record().meals[0], nutrition: { kcal: 999, source: 'estimate', sourceText: '午餐原估算' } }] }));
+  const h = apply(state(), record({ nutrition: { kcal: 2000, protein: 150, source: 'estimate', sourceText: "Original Chat total 2000; retain source despite a different detail sum" }, meals: [{ ...record().meals[0], nutrition: { kcal: 999, source: 'estimate', sourceText: "Original lunch estimate" } }] }));
   const patch = apply(h, { id: 'history-17', nutrition: { kcal: 1900 } });
   assert.equal(patch.dietHistory[0].nutrition.protein, 150);
   assert.equal(patch.dietHistory[0].nutrition.kcal, 1900);
@@ -73,7 +73,7 @@ test('a batch saves once, is atomic on validation failure and rejects duplicate 
   assert.deepEqual(after.items, before.items);
   assert.throws(() => applyMutation(before, { ...payload, records: [record(), record({ id: 'bad', date: '2026-02-30' })] }, NOW));
   assert.equal(before.dietHistory, undefined);
-  assert.throws(() => applyMutation(before, { ...payload, records: [record(), record()] }, NOW), /重复/);
+  assert.throws(() => applyMutation(before, { ...payload, records: [record(), record()] }, NOW), /duplicate/i);
   assert.throws(() => applyMutation(before, { ...payload, records: Array.from({ length: 32 }, (_, i) => record({ id: String(i) })) }, NOW), /31/);
 });
 
@@ -87,7 +87,7 @@ test('historical records cannot be committed, cancelled, reported or converted i
 });
 
 test('history is discoverable by date, list, detail and today context, with audits kept out of AI snapshots', () => {
-  let s = apply(state(), record({ date: '2026-10-18' })); s = apply(s, { id: 'history-17', title: '更正' });
+  let s = apply(state(), record({ date: '2026-10-18' })); s = apply(s, { id: 'history-17', title: "Correction" });
   const list = readDietRecords(s, { date: '2026-10-18' });
   assert.equal(list.records[0].recordType, 'diet_history'); assert.equal(list.records[0].recordId, 'history-17'); assert.equal(list.records[0].versions, undefined);
   const detail = readDietRecords(s, { recordId: 'history-17' });
@@ -99,7 +99,7 @@ test('history is discoverable by date, list, detail and today context, with audi
 });
 
 test('bounded AI reads preserve long control-character originals through lossless detail fragments', () => {
-  const original = '\u0000'.repeat(12000) + '\n原文'; const s = apply(state(), record({ executionSourceText: original, date: '2026-10-18' }));
+  const original = '\u0000'.repeat(12000) + "\nOriginal text"; const s = apply(state(), record({ executionSourceText: original, date: '2026-10-18' }));
   const listed = readDietRecords(s).records[0]; assert.equal(listed.recordTruncated, true); assert.equal(listed.recordType, 'diet_history'); assert.equal(listed.inventoryEffect, 'none'); assert.equal(listed.confirmation, 'partial_report');
   let offset = 0, encoded = ''; do { const part = readDietRecords(s, { recordId: 'history-17', offset }); assert.ok(JSON.stringify(part).length <= 64000); encoded += part.text; offset = part.nextOffset; } while (offset !== null);
   assert.equal(JSON.parse(encoded).executionSourceText, original);

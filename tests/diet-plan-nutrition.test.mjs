@@ -5,13 +5,13 @@ import { nutritionFactor, planNutritionTotals } from '../lib/diet-nutrition.mjs'
 
 const NOW = '2026-10-18T13:00:00.000Z';
 function fixture() {
-  return { schemaVersion: 1, revision: 0, updatedAt: NOW, preferences: [], events: [], operationIds: [], plans: [], items: [validateItem({ id: 'tuna', name: "Ocean's 金枪鱼", category: 'protein', quantity: 3, unit: '罐', gramsPerUnit: null, nutrition: { basisAmount: 55, basisUnit: 'g', kcal: 60, protein: 13, carbs: 0, fat: 0.5, source: 'label', sourceText: '原包装每55g营养，整罐沥干重尚未确认' } }, NOW)] };
+  return { schemaVersion: 1, revision: 0, updatedAt: NOW, preferences: [], events: [], operationIds: [], plans: [], items: [validateItem({ id: 'tuna', name: "Ocean's tuna", category: 'protein', quantity: 3, unit: '罐', gramsPerUnit: null, nutrition: { basisAmount: 55, basisUnit: 'g', kcal: 60, protein: 13, carbs: 0, fat: 0.5, source: 'label', sourceText: "Original package nutrition per 55 g; whole-can drained mass unverified" } }, NOW)] };
 }
 function estimate(patch = {}) {
-  return { basisAmount: 1, basisUnit: '罐', kcal: 80, protein: 17.6, carbs: 0, fat: 0.7, source: 'estimate', sourceNote: '按本次菜单的一罐份量暂估；不是已确认的整罐标签或沥干克重。', ...patch };
+  return { basisAmount: 1, basisUnit: '罐', kcal: 80, protein: 17.6, carbs: 0, fat: 0.7, source: 'estimate', sourceNote: "Temporary whole-can estimate for this menu; not a verified whole-can label or drained mass.", ...patch };
 }
 function plan(nutrition = estimate()) {
-  return { id: 'day-oct18', date: '2026-10-18', title: '金枪鱼沙拉', meals: [{ id: 'dinner', slot: 'dinner', title: '晚餐', plannedItems: [{ id: 'tuna-line', itemId: 'tuna', quantity: 1, unit: '罐', ...(nutrition === undefined ? {} : { nutrition }) }] }], supplementDoses: [] };
+  return { id: 'day-oct18', date: '2026-10-18', title: "Tuna salad", meals: [{ id: 'dinner', slot: 'dinner', title: "Dinner", plannedItems: [{ id: 'tuna-line', itemId: 'tuna', quantity: 1, unit: '罐', ...(nutrition === undefined ? {} : { nutrition }) }] }], supplementDoses: [] };
 }
 function apply(state, action, payload, operationId = `${action}-${state.revision}`) {
   return applyMutation(state, { action, ...payload, operationId, expectedRevision: state.revision }, NOW);
@@ -25,7 +25,7 @@ test('tracked can gets a sourced plan-only nutrition estimate while the inventor
   assert.equal(saved(state).nutritionSnapshot.nutrition.basisUnit, '罐');
   assert.equal(saved(state).nutritionSnapshot.nutrition.kcal, 80);
   assert.equal(saved(state).nutritionSnapshot.nutrition.source, 'estimate');
-  assert.match(saved(state).nutritionSnapshot.nutrition.sourceNote, /仅本次计划口径估算/);
+  assert.match(saved(state).nutritionSnapshot.nutrition.sourceNote, /\[Estimate for this plan only\] Does not change inventory nutrition labels or grams per unit\./);
   assert.deepEqual(saved(state).nutrition, saved(state).nutritionSnapshot.nutrition);
   assert.equal(nutritionFactor(saved(state).nutritionSnapshot, 1, '罐'), 1);
   assert.equal(planNutritionTotals(state.plans[0])[0].value, 80);
@@ -44,7 +44,7 @@ test('saving, confirming and reporting as planned preserve the estimate and dedu
   assert.deepEqual(saved(state).nutritionSnapshot, snapshot);
   assert.equal(apply(state, 'save_meal_plan_draft', { plan: input }, 'same-reserved-draft'), state);
   assert.equal(apply(state, 'commit_meal_plan', { planId: input.id, confirmed: true }, 'repeat-confirmation'), state);
-  const report = { planId: input.id, mealId: 'dinner', mode: 'complete', matchesPlannedFood: true, sourceText: '晚饭按已确认计划吃完；没有报告时间' };
+  const report = { planId: input.id, mealId: 'dinner', mode: 'complete', matchesPlannedFood: true, sourceText: "Finished dinner according to the confirmed plan; time unreported" };
   state = apply(state, 'record_meal_intake', report);
   const actual = state.plans[0].meals[0].actualEntries[0];
   assert.deepEqual(actual.nutritionSnapshot, snapshot);
@@ -61,7 +61,7 @@ test('plan-only estimate survives normalized content round trips without duplica
   const normalized = structuredClone(state.plans[0]);
   assert.equal(apply(state, 'save_meal_plan_draft', { plan: normalized }), state);
   state = apply(state, 'commit_meal_plan', { planId: normalized.id, confirmed: true });
-  assert.equal((saved(state).nutrition.sourceNote.match(/仅本次计划口径估算/g) || []).length, 1);
+  assert.equal((saved(state).nutrition.sourceNote.match(/\[Estimate for this plan only\] Does not change inventory nutrition labels or grams per unit\./g) || []).length, 1);
 });
 
 test('missing evidence, misleading sources and invalid or incompatible nutrition bases reject atomically', () => {
@@ -70,7 +70,7 @@ test('missing evidence, misleading sources and invalid or incompatible nutrition
     estimate({ nutrientSources: { protein: 'label' } }),
     estimate({ sourceNote: '', sourceText: '' }), estimate({ sourceNote: ' \n ', sourceText: '  ' }),
     estimate({ basisAmount: 0 }), estimate({ basisAmount: -1 }), estimate({ basisAmount: undefined }),
-    estimate({ basisUnit: undefined }), estimate({ basisUnit: 'g' }), estimate({ basisUnit: '无效单位' }),
+    estimate({ basisUnit: undefined }), estimate({ basisUnit: 'g' }), estimate({ basisUnit: "Invalid unit" }),
     estimate({ kcal: null, protein: null, carbs: null, fat: null }),
   ];
   for (const nutrition of invalid) {
@@ -78,7 +78,7 @@ test('missing evidence, misleading sources and invalid or incompatible nutrition
     assert.throws(() => apply(before, 'save_meal_plan_draft', { plan: plan(nutrition) }));
     assert.deepEqual(before, copy);
   }
-  const sourceTextOnly = estimate({ sourceNote: '', sourceText: '本次菜谱按整罐份量估算，包装仍只有55g口径。' });
+  const sourceTextOnly = estimate({ sourceNote: '', sourceText: "This recipe estimates a whole-can portion; package nutrition remains per 55 g." });
   assert.equal(saved(apply(fixture(), 'save_meal_plan_draft', { plan: plan(sourceTextOnly) })).nutrition.kcal, 80);
 });
 
@@ -98,8 +98,8 @@ test('ordinary actual reports ignore fabricated client snapshots and inherit onl
   let state = apply(fixture(), 'save_meal_plan_draft', { plan: plan() });
   state = apply(state, 'commit_meal_plan', { planId: state.plans[0].id, confirmed: true });
   const label = structuredClone(state.items[0].nutrition);
-  const fake = { name: '虚构营养', nutrition: estimate({ kcal: 999 }), gramsPerUnit: 1 };
-  state = apply(state, 'record_meal_intake', { planId: state.plans[0].id, mealId: 'dinner', mode: 'complete', matchesPlannedFood: 'true', entries: [{ id: 'ordinary-actual', itemId: 'tuna', quantity: 1, unit: '罐', sourceText: '另行报告吃了一罐', nutritionSnapshot: fake, nutrition: estimate({ kcal: 999 }) }] });
+  const fake = { name: "Fabricated nutrition", nutrition: estimate({ kcal: 999 }), gramsPerUnit: 1 };
+  state = apply(state, 'record_meal_intake', { planId: state.plans[0].id, mealId: 'dinner', mode: 'complete', matchesPlannedFood: 'true', entries: [{ id: 'ordinary-actual', itemId: 'tuna', quantity: 1, unit: '罐', sourceText: "Separately reported eating a can", nutritionSnapshot: fake, nutrition: estimate({ kcal: 999 }) }] });
   const actual = state.plans[0].meals[0].actualEntries[0];
   assert.deepEqual(actual.nutritionSnapshot.nutrition, state.plans[0].meals[0].plannedItems[0].nutritionSnapshot.nutrition);
   assert.equal(actual.nutritionSnapshot.nutrition.kcal, 80);

@@ -1,6 +1,6 @@
-# Daily Pantry · 每日库存
+# Daily Pantry
 
-A personal food inventory and meal-planning app with a Model Context Protocol (MCP) interface. It helps an AI assistant plan meals from current inventory and saved preferences, while keeping menus, actual intake, supplements, and stock accounting separate. The interface is primarily in Simplified Chinese.
+A personal food inventory and meal-planning app with a Model Context Protocol (MCP) interface. It helps an AI assistant plan meals from current inventory and saved preferences, while keeping menus, actual intake, supplements, and stock accounting separate. The interface, assistant tools and project documentation use English. Existing user-authored records keep their original language.
 
 This is a sanitized copy of an actively used personal project. **All bundled food and body-measurement seed data is fictional.** Production records, private logs, credentials, hosting identity and the original Git history are excluded.
 
@@ -8,7 +8,10 @@ This is a sanitized copy of an actively used personal project. **All bundled foo
 
 - Inventory categories, storage, explicit freshness facts and nutrition sources.
 - Immediately visible, editable daily menus with meal nutrition and combined daily ingredient totals.
-- Compact checklists and redistribution of ingredients between meals.
+- Named, expandable recipe groups with absolute half/whole/custom servings.
+- Move a share of a recipe remaining uneaten to another meal without changing daily ingredient totals.
+- Search inventory and add food directly to a meal while retaining saved intake drafts.
+- Compact personal checklists and independent actual-intake drafts.
 - Independent supplement routines and actual dose records.
 - Stable IDs, revision checks, conditional writes and differential accounting to prevent duplicate consumption.
 - Per-item food shortage handling, correction history and preserved unknown values.
@@ -61,8 +64,16 @@ Current storage reads and writes one JSON object per user with revision and ETag
 
 Nutrition values retain their label, recipe or estimate provenance. Unknown values are not silently zero; the app does not prescribe a supplement regimen.
 
+## Ongoing development
+
+Changes are recorded in [CHANGELOG.md](CHANGELOG.md) and the repository commit history. Each release runs regression tests, TypeScript checks, an English UI/tool-copy check and a production build. [AGENTS.md](AGENTS.md) defines the standing release process: update the private app and sync the reviewed public source during the same task. No artificial activity commits are generated.
+
+The repeatable export command is `npm run export:public -- --out <absolute-public-checkout>`. It exports allowed code/docs and explicitly synthetic data, removes private hosting identity and checks for credentials or private identifiers. Authenticated upload uses the connected GitHub tools, preserving the existing branch parent and checking for concurrent changes. This process syncs software changes, never personal stock edits or health records. No GitHub access token is stored in source.
+
+Legacy Chinese unit/storage keys remain in the data protocol for backward compatibility. English labels are rendered at the presentation boundary; changing the app language never rewrites historical intake or inventory facts. Compatibility tests also retain representative original-language input.
+
 ## Development provenance
 
-Developed iteratively with **Codex/ChatGPT** from the owner's requirements and feedback, on a Vinext/Cloudflare Sites starter. This repository does not claim a Claude Code development history or approval by an external program. It starts with a new sanitized history. Included third-party notices remain under `build/` and `vendor/`.
+Developed iteratively with **Codex/ChatGPT** from the owner's requirements and feedback, on a Vinext/Cloudflare Sites starter. This repository does not claim a Claude Code development history or approval by an external program. The initial public import started with sanitized history; subsequent releases are normal commits preserving that public history. Included third-party notices remain under `build/` and `vendor/`.
 
 This repository is shared for project review. No open-source license for project-specific code is granted by this README; included third-party files retain their own licenses.

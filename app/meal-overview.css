@@ -19,6 +19,7 @@
 .meal-overview-foods li>span{min-width:0;overflow-wrap:anywhere}
 .meal-overview-foods li>strong{font-size:12px;font-weight:500;flex-shrink:0;max-width:42%;text-align:right;color:#617953}
 .meal-overview-foods li.is-uneaten{color:#919986}
+.meal-overview-dishes{grid-column:1;min-width:0;margin:0 0 13px;color:#617953}.meal-overview-dishes ul{list-style:none;margin:0;padding:0}.meal-overview-dishes>ul>li{border-top:1px solid #edf0e7}.meal-overview-dishes>ul>li:first-child{border-top:0}.meal-overview-recipe>details>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;min-height:47px;list-style:none;padding:7px 0}.meal-overview-recipe>details>summary::-webkit-details-marker{display:none}.meal-overview-recipe>details>summary>h3{font-size:14px;line-height:1.65;min-height:0;margin:0;overflow-wrap:anywhere;-webkit-line-clamp:2;flex:1}.meal-overview-recipe>details>summary>span{display:flex;align-items:center;gap:5px;flex-shrink:0;font-size:10px;color:#8a9a7b}.meal-overview-recipe>details[open]>summary svg{transform:rotate(180deg)}.meal-overview-recipe>details>ul{border-left:2px solid #e0e9d5;padding-left:10px;margin:0 0 10px 2px}.meal-overview-recipe>details>ul>li,.meal-overview-single{display:flex;justify-content:space-between;align-items:baseline;gap:10px;line-height:1.8;font-size:12px;padding:7px 0}.meal-overview-recipe>details>ul>li>span,.meal-overview-single>span{min-width:0;overflow-wrap:anywhere}.meal-overview-recipe>details>ul>li>strong,.meal-overview-single>strong{flex-shrink:0;font-size:11px;font-weight:500;white-space:nowrap}.meal-overview-recipe>details>summary:focus-visible{outline:2px solid #6c9256;outline-offset:2px;border-radius:5px}
 .meal-overview-metrics{border-top:1px solid #e7ecdf;padding:13px 0 0;margin:0;font-variant-numeric:tabular-nums}
 .overview-metric dt{font-size:11px;color:#8a967f;line-height:1.7;margin:0}
 .overview-metric dd{font-size:15px;color:#50683f;font-weight:550;line-height:1.7;margin:2px 0 0;overflow-wrap:anywhere}
@@ -32,6 +33,7 @@
 .meal-overview-open:hover{color:#335e38}
 .meal-overview-detail{margin-top:20px;scroll-margin-top:10px;min-width:0}
 .meal-overview-detail[hidden]{display:none}
+.meal-overview-actions{display:flex;flex-wrap:wrap;gap:7px;grid-column:1/-1;margin-top:10px}.meal-overview-actions>button{min-height:36px;padding:7px 10px;border:1px solid #dce6d2;border-radius:7px;background:#f4f8ee;color:#698556;font-size:12px;line-height:1.6;text-align:left;overflow-wrap:anywhere}.meal-overview-actions>button:disabled{opacity:.5;cursor:default}.meal-overview-actions>button:focus-visible{outline:2px solid #75975e;outline-offset:2px}
 .meal-detail-navigation{position:sticky;top:8px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px;margin-bottom:12px;border:1px solid #dde6d4;background:#f4f7ef;border-radius:10px;box-shadow:0 3px 9px #35513308}
 .meal-detail-navigation>div{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
 .meal-detail-navigation button{min-height:44px;font-size:13px;padding:9px 16px;border-radius:7px;color:#748868}

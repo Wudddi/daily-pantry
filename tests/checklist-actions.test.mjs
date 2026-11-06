@@ -9,7 +9,7 @@ let sequence = 0;
 const item = (id, unit = 'g', gramsPerUnit = null, quantity = 1000) => validateItem({ id, name: id, unit, quantity, gramsPerUnit,
   category: id === 'creatine' ? 'supplement' : 'prepared', nutrition: { basisAmount: 100, basisUnit: unit === '袋' ? 'g' : unit,
     kcal: 200, protein: 10, carbs: 20, fat: 5, source: 'label' } }, NOW);
-const menu = (itemId = 'rice', quantity = 100) => ({ id: 'daily-food-2026-10-26', date: '2026-10-26', title: '本机验证勾选菜单',
+const menu = (itemId = 'rice', quantity = 100) => ({ id: 'daily-food-2026-10-26', date: '2026-10-26', title: "Local menu check fixture",
   meals: ['breakfast', 'lunch', 'snack', 'dinner'].map(id => ({ id, slot: id, title: id,
     plannedItems: [{ id: `${id}-food`, itemId, quantity }] })),
   supplementDoses: [{ id: 'creatine-am', itemId: 'creatine', plannedQuantity: 5, timingSlot: 'breakfast' }] });
@@ -25,7 +25,7 @@ function apply(state, action) { const { draft, expectedDraftVersion, noChange } 
 const done = mealId => ({ type: 'complete_item', mealId, lineIds: [`${mealId}-food`] });
 const edit = (mealId, quantity, fields = {}) => ({ type: 'set_eaten', mealId, lineIds: [`${mealId}-food`], quantity, ...fields });
 const actual = (state, mealId, quantity) => mutate(state, 'record_meal_intake', { planId: plan(state).id, mealId,
-  entries: [{ id: 'chat-' + mealId, itemId: 'rice', quantity, unit: 'g', sourceText: '用户原始实际记录' }] });
+  entries: [{ id: 'chat-' + mealId, itemId: 'rice', quantity, unit: 'g', sourceText: "Original reported actual intake" }] });
 
 test('one click completes planned portion and meal; existing Chat actual is retained and only the missing difference debited', () => {
   let state = actual(fixture(), 'lunch', 30), before = structuredClone(state);
@@ -88,8 +88,8 @@ test('gram display for packaged meals is converted through the same frozen snaps
 });
 
 test('visual groups retain original line ids and allocate edits while preserving both frozen line snapshots', () => {
-  const raw = menu(); raw.meals[1].plannedItems.push({ id: 'lunch-split', itemId: 'rice', quantity: 50, sourceText: '本机验证：不同冻结快照配方',
-    nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 220, protein: 11, carbs: 21, fat: 6, source: 'estimate', sourceText: '本机验证不同配方' } });
+  const raw = menu(); raw.meals[1].plannedItems.push({ id: 'lunch-split', itemId: 'rice', quantity: 50, sourceText: "Local fixture: different frozen recipe snapshots",
+    nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 220, protein: 11, carbs: 21, fat: 6, source: 'estimate', sourceText: "Local fixture with different recipes" } });
   let state = fixture(undefined, raw); const group = groupChecklistRows(view(state).meals[1])[0];
   assert.deepEqual(group.lineIds, ['lunch-food', 'lunch-split']); assert.equal(group.plannedQuantity, 150);
   state = apply(state, { type: 'set_eaten', mealId: 'lunch', lineIds: group.lineIds, quantity: 80, moveRemainingToMealId: 'dinner' });

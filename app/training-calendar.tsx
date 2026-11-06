@@ -21,7 +21,7 @@ type DayRecords = {
   plannedParts: string[];
 };
 
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const uniqueParts = (sessions: TrainingSession[]) => [...new Set(sessions.flatMap(session => sessionBodyParts(session)))];
 
 function torontoToday() {
@@ -30,17 +30,16 @@ function torontoToday() {
 }
 
 function dateLabel(date: string) {
-  const [year, month, day] = date.split('-').map(Number);
-  return `${year}年${month}月${day}日`;
+  return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'));
 }
 
 function dayLabel(date: string, records: DayRecords | undefined, today: string) {
-  const label = `${dateLabel(date)}${date === today ? '，今天' : ''}`;
-  if (!records) return `${label}，未记录训练；未记录不代表没训练`;
+  const label = `${dateLabel(date)}${date === today ? ", today" : ''}`;
+  if (!records) return `${label}, no training recorded; unrecorded does not mean no training`;
   const descriptions = [];
-  if (records.completed.length) descriptions.push(`${records.completed.length}次已完成，${records.completedParts.join('、') || '训练部位未标注'}`);
-  if (records.planned.length) descriptions.push(`${records.planned.length}次计划，${records.plannedParts.join('、') || '计划部位未标注'}`);
-  return `${label}，${records.completed.length + records.planned.length}条记录；${descriptions.join('；')}`;
+  if (records.completed.length) descriptions.push(`${records.completed.length} completed sessions, ${records.completedParts.join(", ") || "Body part unspecified"}`);
+  if (records.planned.length) descriptions.push(`${records.planned.length} planned sessions, ${records.plannedParts.join(", ") || "Planned body part unspecified"}`);
+  return `${label}, ${records.completed.length + records.planned.length} records; ${descriptions.join("; ")}`;
 }
 
 export default function TrainingCalendar({ sessions, month, onMonthChange, selectedDate, onSelectDate }: TrainingCalendarProps) {
@@ -49,7 +48,7 @@ export default function TrainingCalendar({ sessions, month, onMonthChange, selec
   const legendId = useId();
   const today = torontoToday();
   const [year, monthNumber] = month.split('-').map(Number);
-  const monthLabel = `${year}年${monthNumber}月`;
+  const monthLabel = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
   const days = buildMonthDays(month);
   const { recordsByDate, completedDays, completedCount, plannedCount } = useMemo(() => {
     const recordsByDate = new Map<string, DayRecords>();
@@ -88,27 +87,27 @@ export default function TrainingCalendar({ sessions, month, onMonthChange, selec
 
   return <div className="training-calendar" role="group" aria-labelledby={headingId}>
     <div className="training-calendar-heading">
-      <div><span className="training-calendar-eyebrow">训练月历</span><h3 id={headingId}>{monthLabel}</h3></div>
+      <div><span className="training-calendar-eyebrow">Training calendar</span><h3 id={headingId}>{monthLabel}</h3></div>
       <div className="training-calendar-actions">
-        <button type="button" className="training-calendar-button" onClick={selectToday}><CalendarDays size={16} aria-hidden="true"/>今天</button>
-        <button type="button" className={`training-calendar-button${selectedDate === null ? ' is-active' : ''}`} aria-pressed={selectedDate === null} onClick={() => onSelectDate(null)}>查看整月</button>
+        <button type="button" className="training-calendar-button" onClick={selectToday}><CalendarDays size={16} aria-hidden="true"/>Today</button>
+        <button type="button" className={`training-calendar-button${selectedDate === null ? ' is-active' : ''}`} aria-pressed={selectedDate === null} onClick={() => onSelectDate(null)}>View whole month</button>
       </div>
     </div>
 
     <div className="training-calendar-navigation">
-      <button type="button" className="training-calendar-arrow" aria-label="查看上个月" disabled={month === '0001-01'} onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={19} aria-hidden="true"/></button>
-      <label className="training-calendar-month-picker" htmlFor={monthInputId}><span>跳转月份</span><input id={monthInputId} type="month" min="0001-01" max="9999-12" value={month} onChange={event => jumpToMonth(event.target.value)}/></label>
-      <button type="button" className="training-calendar-arrow" aria-label="查看下个月" disabled={month === '9999-12'} onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={19} aria-hidden="true"/></button>
+      <button type="button" className="training-calendar-arrow" aria-label="Previous month" disabled={month === '0001-01'} onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={19} aria-hidden="true"/></button>
+      <label className="training-calendar-month-picker" htmlFor={monthInputId}><span>Jump to month</span><input id={monthInputId} type="month" min="0001-01" max="9999-12" value={month} onChange={event => jumpToMonth(event.target.value)}/></label>
+      <button type="button" className="training-calendar-arrow" aria-label="Next month" disabled={month === '9999-12'} onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={19} aria-hidden="true"/></button>
     </div>
 
     <div className="training-calendar-stats" aria-live="polite" aria-atomic="true">
-      <div><strong>{completedDays}<small>天</small></strong><span>已记录训练日</span></div>
-      <div><strong>{completedCount}<small>次</small></strong><span>已完成记录</span></div>
-      <div><strong>{plannedCount}<small>次</small></strong><span>计划记录</span></div>
+      <div><strong>{completedDays}<small> days</small></strong><span>Recorded training days</span></div>
+      <div><strong>{completedCount}<small> sessions</small></strong><span>Completed records</span></div>
+      <div><strong>{plannedCount}<small> sessions</small></strong><span>Planned records</span></div>
     </div>
 
     <div className="training-calendar-weekdays" aria-hidden="true">{WEEKDAYS.map((day, index) => <span key={day} className={index > 4 ? 'is-weekend' : undefined}>{day}</span>)}</div>
-    <div className="training-calendar-days" role="group" aria-label={`${monthLabel}日期`} aria-describedby={legendId}>
+    <div className="training-calendar-days" role="group" aria-label={`${monthLabel}Date`} aria-describedby={legendId}>
       {days.map(({ date, day }, index) => {
         if (!date || day === null) return <div key={`empty-${index}`} className="training-calendar-empty" aria-hidden="true"/>;
         const records = recordsByDate.get(date);
@@ -120,16 +119,16 @@ export default function TrainingCalendar({ sessions, month, onMonthChange, selec
         return <button type="button" key={date} className={className} aria-label={label} title={label} aria-pressed={selectedDate === date} aria-current={date === today ? 'date' : undefined} onClick={() => onSelectDate(date)}>
           <span className="training-calendar-date" aria-hidden="true">{day}{date === today && <i/>}</span>
           <span className="training-calendar-day-records" aria-hidden="true">
-            {hasCompleted && <span className="training-calendar-completed"><Check size={12}/>{records!.completed.length}次</span>}
-            {hasPlanned && <span className="training-calendar-planned"><Clock3 size={12}/>{records!.planned.length}次</span>}
+            {hasCompleted && <span className="training-calendar-completed"><Check size={12}/>{records!.completed.length} sessions</span>}
+            {hasPlanned && <span className="training-calendar-planned"><Clock3 size={12}/>{records!.planned.length} sessions</span>}
             {!records && <span className="training-calendar-no-record">—</span>}
           </span>
-          {records && <span className="training-calendar-parts" aria-hidden="true">{parts.length ? parts.join('·') : '未标部位'}</span>}
+          {records && <span className="training-calendar-parts" aria-hidden="true">{parts.length ? parts.join('·') : "Unspecified body part"}</span>}
         </button>;
       })}
     </div>
 
-    <div id={legendId} className="training-calendar-legend"><span><i className="training-calendar-key-completed"/>已完成</span><span><i className="training-calendar-key-planned"/>计划</span><span>未记录不代表没训练</span></div>
-    <div className="training-calendar-selection" aria-live="polite">{selectedDate ? <span>已选择 {dateLabel(selectedDate)} · 当日 {(recordsByDate.get(selectedDate)?.completed.length ?? 0) + (recordsByDate.get(selectedDate)?.planned.length ?? 0)} 条记录 · 本月共 {completedCount + plannedCount} 条记录</span> : <span>整月共 {completedCount + plannedCount} 条记录 · 计划不计入完成训练日</span>}</div>
+    <div id={legendId} className="training-calendar-legend"><span><i className="training-calendar-key-completed"/>Completed</span><span><i className="training-calendar-key-planned"/>Planned</span><span>Unrecorded does not mean no training</span></div>
+    <div className="training-calendar-selection" aria-live="polite">{selectedDate ? <span>Selected: {dateLabel(selectedDate)} · This date: {(recordsByDate.get(selectedDate)?.completed.length ?? 0) + (recordsByDate.get(selectedDate)?.planned.length ?? 0)} records · Monthly total: {completedCount + plannedCount} records</span> : <span>Monthly total: {completedCount + plannedCount} records · Planned sessions do not count as completed training days</span>}</div>
   </div>;
 }

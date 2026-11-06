@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { applyMutation, validateItem } from '../lib/inventory.mjs';
 import { isReusableProduct, matchExistingProducts } from '../lib/inventory-product-identity.mjs';
 
+// Legacy Chinese aliases and full-width characters intentionally cover stored-product compatibility.
 const NOW = '2026-10-21T12:00:00.000Z';
 const LATER = '2026-10-21T13:00:00.000Z';
 const nutrition = { basisAmount: 100, basisUnit: 'g', kcal: 60, protein: 10, carbs: 5, fat: 0, source: 'label', sourceText: '原始实物营养标签' };
@@ -105,7 +106,7 @@ test('restock reuses the same catalogue ID and exact current total while retaini
   assert.deepEqual(after.items[0].aliases, before.items[0].aliases);
   assert.deepEqual(after.plans, before.plans);
   assert.notEqual(after.items[0].quantityBaselineToken, before.items[0].quantityBaselineToken);
-  assert.match(after.events.at(-1).detail, /当前总量，不与旧余量累加/);
+  assert.match(after.events.at(-1).detail, /current total, not an addition to the old balance/);
   const known = apply(state(), 'restock', { itemId: 'pc-yogurt', quantity: 1000 });
   assert.equal(known.items[0].quantity, 1000, 'existing 700g is not added to a reported 1000g total');
 });

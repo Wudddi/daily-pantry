@@ -7,7 +7,7 @@ import ts from 'typescript';
 import { buildSupplementChecklist, parseSupplementTimetable, supplementCheckState, SUPPLEMENT_TIMING_SLOTS } from '../lib/supplement-checklist.mjs';
 
 function actual(quantity, unit = '粒', patch = {}) {
-  return { id: 'actual', itemId: 'supplement', name: '补给', quantity, unit, sourceText: '用户原话：已经服用，保留原报告', reportedAt: '2026-10-19T13:00:00Z', quantitySource: quantity === null ? 'unknown' : 'reported', correctionHistory: [], ...patch };
+  return { id: 'actual', itemId: 'supplement', name: "Supplements", quantity, unit, sourceText: '用户原话：已经服用，保留原报告', reportedAt: '2026-10-19T13:00:00Z', quantitySource: quantity === null ? 'unknown' : 'reported', correctionHistory: [], ...patch };
 }
 function dose(id, patch = {}) {
   return { id, itemId: 'supplement-' + id, plannedQuantity: 1, unit: '粒', timingSlot: 'breakfast', requirement: 'daily', scheduled: true, instruction: '', trainingDayOnly: false, plannedMealId: null, plannedTime: null, plannedTimeText: '', sourceText: '', state: 'reserved', nutritionSnapshot: { name: '品牌补给 ' + id, unit: '粒', supplementFacts: '每粒有效成分 100 µg\n按保存的标签核对', ingredients: '胶囊辅料原文', nutrition: {}, gramsPerUnit: null }, actualEntries: [], actualTime: null, actualTimeText: '', reportSourceText: '', reportHistory: [], completionReportedAt: null, ...patch };
@@ -71,7 +71,7 @@ test('seven timing slots preserve all thirteen independent doses and legacy dose
 const source = await readFile(new URL('../app/supplement-checklist.tsx', import.meta.url), 'utf8');
 let compiled = ts.transpileModule(source, { fileName: 'supplement-checklist.tsx', compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 compiled = compiled.replace(/import\s+["']\.\/supplement-checklist\.css["'];?/g, '');
-compiled = compiled.replace(/from\s+(["'])([^"']+)\1/g, (_match, _quote, specifier) => {
+compiled = compiled.replace(/(?<=^import[^;\n]*\s)from\s+(["'])([^"']+)\1/gm, (_match, _quote, specifier) => {
   const url = specifier.startsWith('@/lib/') ? new URL('../lib/' + specifier.slice('@/lib/'.length), import.meta.url).href : import.meta.resolve(specifier);
   return 'from ' + JSON.stringify(url);
 });
@@ -81,27 +81,27 @@ const render = value => renderToStaticMarkup(React.createElement(SupplementCheck
 
 test('SSR shows unknown dose as unknown, keeps optional markers, saved label text and full actual wording', () => {
   const html = render(plan([dose('unknown', { plannedQuantity: null, requirement: 'optional', scheduled: false, actualEntries: [actual(null)] })]));
-  assert.match(html, /已服用，用量未报/);
+  assert.match(html, /Taken; amount unreported/);
   assert.match(html, /type="checkbox"[^>]*checked=""/);
-  assert.match(html, /本日已记录/);
-  assert.match(html, /可选/);
-  assert.doesNotMatch(html, /项每日应服已记录|0 \/ 0/);
+  assert.match(html, /Recorded today/);
+  assert.match(html, /Optional/);
+  assert.doesNotMatch(html, /daily doses recorded|0 \/ 0/);
   assert.match(html, /<details class="supp-row-details">/);
   assert.match(html, /用户原话：已经服用，保留原报告/);
   assert.match(html, /每粒有效成分 100 µg/);
-  assert.doesNotMatch(html, /已按计划服用（1 粒）/);
+  assert.doesNotMatch(html, /Taken as planned \(1 unit\)/);
 });
 
 test('SSR lets label-pending physical amounts remain readable and editable-menu checkboxes work without food confirmation', () => {
   const value = plan([dose('D3', { requirement: 'label_pending', plannedQuantity: 1, instruction: '物理数量已确认，IU标签尚待核对' })], { status: 'draft' });
   const html = render(value);
-  assert.match(html, /标签待核/);
-  assert.match(html, /已按计划服用（1 粒）/);
+  assert.match(html, /Label pending review/);
+  assert.match(html, /Taken as planned \(1 unit\)/);
   assert.match(html, /IU标签尚待核对/);
   const input = html.match(/<input[^>]*type="checkbox"[^>]*>/)?.[0];
   assert.ok(input);
   assert.doesNotMatch(input, /disabled=""/);
-  assert.doesNotMatch(html, /确认这一天的安排后即可勾选/);
+  assert.doesNotMatch(html, /Confirm the schedule for this day to check doses/);
 });
 
 test('SSR keeps every optional choice visible in the compact list and collapses long details', () => {
@@ -113,8 +113,8 @@ test('SSR keeps every optional choice visible in the compact list and collapses 
   assert.match(html, /<details class="supp-more">/);
   assert.doesNotMatch(html, /<details[^>]* open/);
   const controls = [...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)].map(match => match[1].replace(/<[^>]*>/g, '')).join(' ');
-  assert.doesNotMatch(controls, /全部服用|一键服用|全部吃完/);
-  assert.doesNotMatch(html, /supp-inline-undo|撤销这次误勾|确认撤销/);
+  assert.doesNotMatch(controls, /Take all|One-click intake|Finish all/);
+  assert.doesNotMatch(html, /supp-inline-undo|Undo accidental check|Confirm undo/);
 });
 
 test('SSR global saving does not disable individual checks and routine controls use the real source only', () => {
@@ -122,13 +122,13 @@ test('SSR global saving does not disable individual checks and routine controls 
   const input = html.match(/<input[^>]*type="checkbox"[^>]*>/)?.[0];
   assert.ok(input);
   assert.doesNotMatch(input, /disabled/);
-  assert.match(html, /设为每天常用安排/);
-  assert.match(html, /仅更新以后默认安排，已服记录保留/);
+  assert.match(html, /Set as daily routine/);
+  assert.match(html, /Updates future defaults only; reported doses are retained/);
 });
 
 test('SSR separates a saved intake from inventory pending reconciliation and folds its issues', () => {
   const html = render(plan([dose('one', { actualEntries: [actual(1)] })], { inventoryAccounting: 'pending_reconciliation', accountingIssues: [{ code: 'unknown_balance', message: '原库存余量未知' }] }));
-  assert.match(html, /服用记录已保存，库存待核对/);
+  assert.match(html, /Intake saved; inventory needs review/);
   assert.match(html, /<details class="supp-accounting-details">/);
   assert.match(html, /原库存余量未知/);
   assert.doesNotMatch(html, /<details class="supp-accounting-details" open/);
@@ -136,7 +136,7 @@ test('SSR separates a saved intake from inventory pending reconciliation and fol
 
 function importFixture() {
   const value = plan([dose('one'), dose('untouched')]);
-  const items = ['one', 'two', 'untouched'].map(id => ({ id: 'supplement-' + id, name: '补给名称 ' + id, brand: '品牌', category: 'supplement', unit: '粒' }));
+  const items = ['one', 'two', 'untouched'].map(id => ({ id: 'supplement-' + id, name: '补给名称 ' + id, brand: "Brand", category: 'supplement', unit: '粒' }));
   const input = { planId: value.id, date: value.date, supplementDoses: [
     { id: 'one', itemId: 'supplement-one', plannedQuantity: 1, unit: '粒', timingSlot: 'lunch', requirement: 'daily', scheduled: true, plannedMealId: 'lunch', plannedTime: '12:30', plannedTimeText: '午餐后', instruction: '按已保存的标签与当前安排', trainingDayOnly: false },
     { id: 'two', itemId: 'supplement-two', plannedQuantity: null, unit: '粒', timingSlot: 'bedtime', requirement: 'label_pending', scheduled: false, instruction: '物理用量尚未确认' },
@@ -149,7 +149,7 @@ test('timetable import retains null amounts, previews only the dose merge and le
   const preview = parseSupplementTimetable(JSON.stringify(input), value, items);
   assert.equal(preview.supplementDoses[1].plannedQuantity, null);
   assert.equal(preview.rows[0].name, '补给名称 one');
-  assert.equal(preview.rows[0].timingLabel, '午餐 / 午餐后');
+  assert.equal(preview.rows[0].timingLabel, "Lunch / After lunch");
   assert.deepEqual([preview.updatedCount, preview.newCount, preview.retainedCount], [1, 1, 1]);
   assert.equal(Object.hasOwn(preview.supplementDoses[0], 'actualEntries'), false);
   assert.equal(Object.hasOwn(preview.supplementDoses[0], 'meals'), false);
@@ -163,10 +163,10 @@ test('timetable import preserves existing actual facts and blocks changing their
   assert.equal(parseSupplementTimetable(JSON.stringify(input), value, items).updatedCount, 1);
   assert.deepEqual(value, before);
   input.supplementDoses[0].plannedQuantity = null;
-  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), value, items), /已有实际服用记录/);
+  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), value, items), /Actual intake already exists/);
   input.supplementDoses[0].plannedQuantity = 1;
   input.supplementDoses[0].itemId = 'supplement-two';
-  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), value, items), /另一种补给/);
+  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), value, items), /another supplement/i);
 });
 
 test('timetable validation rejects wrong target, hidden actual/state writes, invalid quantities, units and metadata', () => {
@@ -187,8 +187,8 @@ test('timetable validation rejects wrong target, hidden actual/state writes, inv
   check(data => { data.supplementDoses[0].plannedMealId = 'missing-meal'; });
   check(data => { data.supplementDoses[0].instruction = '字'.repeat(1001); });
   check(data => { data.supplementDoses.push(structuredClone(data.supplementDoses[0])); });
-  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), { ...value, status: 'draft' }, items), /只能/);
-  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), value, items.map(item => ({ ...item, category: 'staple' }))), /补给库存/);
+  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), { ...value, status: 'draft' }, items), /can only be imported/);
+  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), value, items.map(item => ({ ...item, category: 'staple' }))), /supplement inventory/);
 });
 
 test('timetable limits include imported row count, merged count and UTF-8 file bytes', () => {
@@ -197,7 +197,7 @@ test('timetable limits include imported row count, merged count and UTF-8 file b
   assert.throws(() => parseSupplementTimetable('字'.repeat(40000), value, items), /100 KB/);
   assert.throws(() => parseSupplementTimetable(JSON.stringify({ supplementDoses: Array.from({ length: 33 }, (_, i) => ({ ...input.supplementDoses[0], id: 'dose-' + i })) }), value, items), /32/);
   const many = { ...value, supplementDoses: Array.from({ length: 32 }, (_, i) => dose('old-' + i)) };
-  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), many, items), /合并后超过/);
+  assert.throws(() => parseSupplementTimetable(JSON.stringify(input), many, items), /merged schedule exceeds/i);
   assert.equal(parseSupplementTimetable('\uFEFF' + JSON.stringify(input), value, items).rows.length, 2);
 });
 
@@ -206,12 +206,12 @@ test('SSR import preview reads names and timings, explains retained doses and di
   const html = renderToStaticMarkup(React.createElement(TimetableImportDialog, { preview, stale: true, busy: false, error: '', close() {}, confirm() { throw new Error('SSR cannot import'); } }));
   assert.match(html, /补给名称 one/);
   assert.match(html, /午餐后/);
-  assert.match(html, /用量未报/);
-  assert.match(html, /未列入的 1 个原有剂次会保留/);
-  assert.match(html, /不改三餐，也不自动标记已服用/);
-  assert.match(html, /菜单或库存版本已经变化/);
+  assert.match(html, /Amount unreported/);
+  assert.match(html, /retain 1 unlisted existing doses/);
+  assert.match(html, /Meals stay unchanged and doses are not marked taken/);
+  assert.match(html, /The menu or inventory version changed/);
   const confirmButton = [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]
-    .map(match => match[0]).find(button => button.replace(/<[^>]*>/g, '').includes('确认合并时间表'));
+    .map(match => match[0]).find(button => button.replace(/<[^>]*>/g, '').includes("Merge schedule"));
   assert.ok(confirmButton);
   assert.match(confirmButton, /disabled=""/);
   assert.doesNotMatch(html, /supplement-one|plannedQuantity|actualEntries/);

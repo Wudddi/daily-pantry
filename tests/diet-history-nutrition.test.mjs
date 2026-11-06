@@ -10,21 +10,21 @@ const KEYS = ['kcal', 'protein', 'carbs', 'fat'];
 const copy = value => structuredClone(value);
 function state() {
   return { schemaVersion: 1, revision: 0, updatedAt: NOW,
-    items: [validateItem({ id: 'current', name: '当前面包', category: 'bread', quantity: 10, unit: '片', status: 'pending' }, NOW)],
+    items: [validateItem({ id: 'current', name: "Current bread", category: 'bread', quantity: 10, unit: '片', status: 'pending' }, NOW)],
     plans: [], preferences: [], events: [], operationIds: [] };
 }
 function record(overrides = {}) {
-  return { id: 'nutrition-history', date: '2026-10-17', title: '有来源的历史菜单', confirmation: 'partial_report',
-    meals: [{ id: 'lunch', name: '午餐', status: 'reported_completed', plannedTime: '12:00', actualTime: null,
-      items: [{ id: 'potato', name: '土豆', inventoryItemId: 'old-potato-batch', quantity: 400,
+  return { id: 'nutrition-history', date: '2026-10-17', title: "Sourced historical menu", confirmation: 'partial_report',
+    meals: [{ id: 'lunch', name: "Lunch", status: 'reported_completed', plannedTime: '12:00', actualTime: null,
+      items: [{ id: 'potato', name: "Potatoes", inventoryItemId: 'old-potato-batch', quantity: 400,
         plannedQuantity: 400, actualQuantity: 450, quantitySource: 'reported', unit: 'g',
-        nutrition: { kcal: 320, protein: 8, carbs: 72, fat: 0.4, source: 'estimate', sourceText: '400g计划份量估算' },
-        sourceText: '16日450克土豆；本轮未重述生熟口径' }] }],
-    supplements: [{ id: 'fish-oil', name: '鱼油', quantity: 1, plannedQuantity: 1, actualQuantity: null,
-      quantitySource: 'unknown', unit: '粒', status: 'unknown', actualTime: null, sourceText: '计划1粒，未核对执行或包装营养' }],
-    nutrition: { kcal: 1960, protein: 145, carbs: 250, fat: 50, source: 'estimate', sourceText: '已按当前食物与份量重算全天；补给标签仍未知' },
-    planSourceText: '原计划土豆400g', executionSourceText: '用户确认土豆450g',
-    sourceRefs: [{ conversationId: 'current-codex-chat', messageKey: 'potato-date-quantity-confirmation', kind: 'user', text: '16日450克土豆' }],
+        nutrition: { kcal: 320, protein: 8, carbs: 72, fat: 0.4, source: 'estimate', sourceText: "Planned 400 g portion estimate" },
+        sourceText: "450 g potatoes on the 16th; raw/cooked basis not repeated" }] }],
+    supplements: [{ id: 'fish-oil', name: "Fish oil", quantity: 1, plannedQuantity: 1, actualQuantity: null,
+      quantitySource: 'unknown', unit: '粒', status: 'unknown', actualTime: null, sourceText: "Planned 1 capsule; actual use and label nutrition unverified" }],
+    nutrition: { kcal: 1960, protein: 145, carbs: 250, fat: 50, source: 'estimate', sourceText: "Daily nutrition recalculated for current foods and quantities; supplement label still unknown" },
+    planSourceText: "Original plan: 400 g potatoes", executionSourceText: "User confirmed 450 g potatoes",
+    sourceRefs: [{ conversationId: 'current-codex-chat', messageKey: 'potato-date-quantity-confirmation', kind: 'user', text: "450 g potatoes on the 16th" }],
     ...overrides };
 }
 function apply(s, r, operationId = `history-nutrition-${s.revision}`, at = NOW) {
@@ -59,7 +59,7 @@ test('signature follows food identity, effective quantity, unit and portion nutr
   const changes = {
     foodId: r => { r.meals[0].items[0].id = 'different-line'; },
     inventoryBatch: r => { r.meals[0].items[0].inventoryItemId = 'another-batch'; },
-    foodName: r => { r.meals[0].items[0].name = '红薯'; },
+    foodName: r => { r.meals[0].items[0].name = "Sweet potatoes"; },
     mealAllocation: r => { r.meals[0].id = 'dinner'; },
     effectiveQuantity: r => { r.meals[0].items[0].actualQuantity = 500; },
     unit: r => { r.meals[0].items[0].unit = '个'; },
@@ -68,7 +68,7 @@ test('signature follows food identity, effective quantity, unit and portion nutr
     portionProtein: r => { r.meals[0].items[0].nutrition.protein = 9; },
     portionCarbs: r => { r.meals[0].items[0].nutrition.carbs = 70; },
     portionFat: r => { r.meals[0].items[0].nutrition.fat = 1; },
-    supplementIdentity: r => { r.supplements[0].name = '另一种鱼油'; },
+    supplementIdentity: r => { r.supplements[0].name = "Another fish oil"; },
   };
   for (const [label, change] of Object.entries(changes)) {
     const changed = copy(saved); change(changed);
@@ -125,12 +125,12 @@ test('a partial re-report refreshes only explicitly supplied nutrient keys and e
 
 test('time, narration and evidence corrections leave current bindings intact', () => {
   const first = apply(state(), record()), meals = copy(current(first).meals), supplements = copy(current(first).supplements);
-  meals[0].plannedTime = '12:30'; meals[0].actualTime = '12:40'; meals[0].actualTimeText = '12:40吃完';
-  meals[0].sourceText = '补充逐字原话'; meals[0].items[0].sourceText += '\n补充没有改份量';
-  supplements[0].plannedTime = '13:00'; supplements[0].sourceText += '\n仍未确认剂量';
-  const after = apply(first, { id: 'nutrition-history', title: '更正来源说明', meals, supplements,
-    planSourceText: '完整计划原话\n', executionSourceText: '保留新原话，不虚构摄入',
-    notes: '只改时间与原话', sourceRefs: [...current(first).sourceRefs, { conversationId: 'current-codex-chat', messageKey: 'later-time-report', kind: 'user', text: '12:40吃完' }] });
+  meals[0].plannedTime = '12:30'; meals[0].actualTime = '12:40'; meals[0].actualTimeText = "Finished at 12:40";
+  meals[0].sourceText = "Additional verbatim source text"; meals[0].items[0].sourceText += "\nAdditional text did not change portions";
+  supplements[0].plannedTime = '13:00'; supplements[0].sourceText += "\nDose still unconfirmed";
+  const after = apply(first, { id: 'nutrition-history', title: "Corrected provenance explanation", meals, supplements,
+    planSourceText: "Complete planned source text\n", executionSourceText: "Preserve new source text without inventing intake",
+    notes: "Edit time and source text only", sourceRefs: [...current(first).sourceRefs, { conversationId: 'current-codex-chat', messageKey: 'later-time-report', kind: 'user', text: "Finished at 12:40" }] });
   assert.equal(historyNutritionSignature(current(after)), historyNutritionSignature(current(first)));
   assert.deepEqual(current(after).nutritionSignatures, current(first).nutritionSignatures);
   assert.equal(current(after).supplements[0].actualQuantity, null);
@@ -190,8 +190,8 @@ test('signed imports and corrections remain stock-neutral after recounts and on 
 
 test('server-added nutrient bindings cannot silently exceed the single-record 240000-character budget', () => {
   const input = record({ planSourceText: 'x'.repeat(100000), executionSourceText: 'y'.repeat(100000),
-    meals: [{ id: 'lunch', name: '午餐', status: 'planned', items: Array.from({ length: 30 }, (_, i) => ({
-      id: `food-${i}`, name: '菜'.repeat(200), inventoryItemId: `batch-${i}`, quantity: 100, plannedQuantity: 100, unit: 'g',
+    meals: [{ id: 'lunch', name: "Lunch", status: 'planned', items: Array.from({ length: 30 }, (_, i) => ({
+      id: `food-${i}`, name: 'D'.repeat(200), inventoryItemId: `batch-${i}`, quantity: 100, plannedQuantity: 100, unit: 'g',
     })) }] });
   assert.ok(JSON.stringify(validateDietHistory(input)).length < 240000, 'the user input itself fits before adding server metadata');
   const before = state(), snapshot = copy(before);

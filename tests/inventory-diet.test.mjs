@@ -5,8 +5,8 @@ import { applyMutation, validateItem } from '../lib/inventory.mjs';
 const NOW = '2026-10-18T01:00:00.000Z';
 const LATER = '2026-10-18T02:00:00.000Z';
 function fixture() {
-  const main = validateItem({ id: 'main', name: '分袋备餐', category: 'prepared', quantity: 10, unit: '袋', ingredients: '主餐配方原文', nutrition: { basisAmount: 1, basisUnit: '袋', kcal: 100, protein: 10, carbs: 10, fat: 3, source: 'label', sourceText: '标签每袋数据' } }, NOW);
-  const fish = validateItem({ id: 'fish', name: '测试补给', category: 'supplement', quantity: 10, unit: '粒', supplementFacts: '每粒：测试成分200mg，非整粒重量', nutrition: { basisAmount: 1, basisUnit: '粒', kcal: null, protein: null, carbs: null, fat: null, source: 'unknown' } }, NOW);
+  const main = validateItem({ id: 'main', name: "Prepared portions", category: 'prepared', quantity: 10, unit: '袋', ingredients: '主餐配方原文', nutrition: { basisAmount: 1, basisUnit: '袋', kcal: 100, protein: 10, carbs: 10, fat: 3, source: 'label', sourceText: '标签每袋数据' } }, NOW);
+  const fish = validateItem({ id: 'fish', name: "Test supplement", category: 'supplement', quantity: 10, unit: '粒', supplementFacts: '每粒：测试成分200mg，非整粒重量', nutrition: { basisAmount: 1, basisUnit: '粒', kcal: null, protein: null, carbs: null, fat: null, source: 'unknown' } }, NOW);
   return { schemaVersion: 1, revision: 0, updatedAt: NOW, items: [main, fish], plans: [], events: [], operationIds: [], preferences: ['保留全天库存依据'], futureExtension: { mustSurvive: true } };
 }
 function meal(id, quantity) { return { id, slot: id === 'lunch' ? 'lunch' : 'dinner', title: id, plannedTime: id === 'lunch' ? '12:00' : '18:00', plannedItems: [{ id: `${id}-main`, itemId: 'main', quantity }] }; }

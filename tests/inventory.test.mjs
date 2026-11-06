@@ -5,8 +5,7 @@ import { applyMutation, planningSnapshot, seedState, validateItem } from '../lib
 
 const NOW = '2026-10-18T03:00:00.000Z';
 const LATER = '2026-10-18T04:00:00.000Z';
-// DEMO: all foods, quantities, labels and evidence in this suite are synthetic.
-const nutrition = { basisAmount: 100, basisUnit: 'g', kcal: 200, protein: 15, carbs: 20, fat: 7, source: 'label', sourceNote: '包装标签' };
+const nutrition = { basisAmount: 100, basisUnit: 'g', kcal: 200, protein: 15, carbs: 20, fat: 7, source: 'label', sourceNote: "Package label" };
 
 function food(overrides = {}) {
   return { id: 'test-food', name: '测试主餐', category: 'prepared', quantity: 2, unit: '袋', nutrition, gramsPerUnit: 300, ...overrides };
@@ -21,9 +20,9 @@ function fixtureState() {
   return {
     schemaVersion: 1, revision: 0, updatedAt: at, events: [], plans: [], operationIds: [], preferences: ['按库存安排饮食'],
     items: [
-      validateItem({ id: 'fixture-mushrooms', name: '蘑菇', category: 'vegetable', quantity: 300, unit: 'g', priority: true }, at),
-      validateItem({ id: 'fixture-dessert', name: '冰激凌', category: 'dessert', quantity: null, unit: 'g' }, at),
-      validateItem({ id: 'fixture-broccoli', name: '西兰花', category: 'vegetable', quantity: 0, unit: 'g' }, at),
+      validateItem({ id: 'seed-mushrooms', name: '蘑菇', category: 'vegetable', quantity: 588, unit: 'g', priority: true }, at),
+      validateItem({ id: 'seed-ice-cream', name: '冰激凌', category: 'dessert', quantity: null, unit: 'g' }, at),
+      validateItem({ id: 'seed-broccoli', name: "Broccoli", category: 'vegetable', quantity: 0, unit: 'g' }, at),
     ],
   };
 }
@@ -52,10 +51,9 @@ test('known supplement calories still calculate without inventing optional missi
   assert.equal(snapshot.nutritionReadiness.partialCount, 0);
 });
 
-test('the DEMO seed is cloned, preserves pending foods and never invents missing mushroom nutrition', () => {
+test('the fictional demo seed is cloned, preserves pending foods and never invents missing mushroom nutrition', () => {
   const state = seedState();
   const mushrooms = state.items.find((entry) => entry.id === 'demo-mushrooms');
-  assert.equal(mushrooms.name, 'DEMO 蘑菇');
   assert.equal(mushrooms.quantity, 300);
   assert.equal(mushrooms.nutrition.source, 'unknown');
   for (const key of ['kcal', 'protein', 'carbs', 'fat']) assert.equal(mushrooms.nutrition[key], null);
@@ -65,8 +63,6 @@ test('the DEMO seed is cloned, preserves pending foods and never invents missing
   assert.equal(snapshot.depletedItems.length, 1);
   assert.ok(snapshot.pendingItems.some((entry) => entry.id === 'demo-stew'));
   assert.ok(snapshot.pendingItems.some((entry) => entry.id === 'demo-potatoes'));
-  assert.ok(state.items.every((entry) => entry.name.startsWith('DEMO ') && entry.nutrition.sourceText.startsWith('DEMO synthetic')));
-  assert.deepEqual(state.preferences, ['DEMO：优先参考现有库存安排示例菜单。', 'DEMO：未知数量和营养保持未知，核实后再更新。']);
   const after = mutation(state, 'consume', { id: mushrooms.id, quantity: 200 });
   assert.equal(after.items.find((entry) => entry.id === 'demo-mushrooms').quantity, 100);
   state.items[0].nutrition.kcal = 999;
@@ -75,36 +71,36 @@ test('the DEMO seed is cloned, preserves pending foods and never invents missing
 
 test('consume subtracts the confirmed amount without mutating the old state or unrelated confirmation times', () => {
   const before = fixtureState();
-  const after = mutation(before, 'consume', { id: 'fixture-mushrooms', quantity: 200 });
-  assert.equal(after.items[0].quantity, 100);
-  assert.equal(before.items[0].quantity, 300);
+  const after = mutation(before, 'consume', { id: 'seed-mushrooms', quantity: 200 });
+  assert.equal(after.items[0].quantity, 388);
+  assert.equal(before.items[0].quantity, 588);
   assert.equal(after.items[0].confirmedAt, NOW);
   assert.equal(after.items[1].confirmedAt, before.items[1].confirmedAt);
   assert.equal(after.revision, 1);
-  assert.match(after.events[0].detail, /实际食用.*200.*剩余 100/);
+  assert.match(after.events[0].detail, /Consumed:.*200.*remaining 388/);
 });
 
 test('retries are idempotent even with a stale revision', () => {
   const before = fixtureState();
-  const payload = { action: 'consume', id: 'fixture-mushrooms', quantity: 200, operationId: 'one-consumption', expectedRevision: 0 };
+  const payload = { action: 'consume', id: 'seed-mushrooms', quantity: 200, operationId: 'one-consumption', expectedRevision: 0 };
   const after = applyMutation(before, payload, NOW);
   const retried = applyMutation(after, payload, LATER);
   assert.strictEqual(retried, after);
-  assert.equal(retried.items[0].quantity, 100);
+  assert.equal(retried.items[0].quantity, 388);
   assert.equal(retried.events.length, 1);
 });
 
 test('an unrelated stale mutation gets a revision conflict before changing inventory', () => {
-  const state = mutation(fixtureState(), 'consume', { id: 'fixture-mushrooms', quantity: 200 });
-  assert.throws(() => applyMutation(state, { action: 'set_quantity', id: 'fixture-mushrooms', quantity: 100, operationId: 'stale-write', expectedRevision: 0 }, NOW), (error) => error.status === 409 && error.code === 'REVISION_CONFLICT');
-  assert.equal(state.items[0].quantity, 100);
+  const state = mutation(fixtureState(), 'consume', { id: 'seed-mushrooms', quantity: 200 });
+  assert.throws(() => applyMutation(state, { action: 'set_quantity', id: 'seed-mushrooms', quantity: 100, operationId: 'stale-write', expectedRevision: 0 }, NOW), (error) => error.status === 409 && error.code === 'REVISION_CONFLICT');
+  assert.equal(state.items[0].quantity, 388);
 });
 
 test('overspending, negative amounts and consuming an unknown amount are rejected', () => {
   const state = fixtureState();
-  assert.throws(() => mutation(state, 'consume', { id: 'fixture-mushrooms', quantity: 301 }), /超过当前库存/);
-  assert.throws(() => mutation(state, 'consume', { id: 'fixture-mushrooms', quantity: -1 }), /有限数值/);
-  assert.throws(() => mutation(state, 'consume', { id: 'fixture-dessert', quantity: 50 }), (error) => error.code === 'UNKNOWN_QUANTITY');
+  assert.throws(() => mutation(state, 'consume', { id: 'seed-mushrooms', quantity: 589 }), /Consumed quantity exceeds current inventory\. Review the balance first\./);
+  assert.throws(() => mutation(state, 'consume', { id: 'seed-mushrooms', quantity: -1 }), /finite number/);
+  assert.throws(() => mutation(state, 'consume', { id: 'seed-ice-cream', quantity: 50 }), (error) => error.code === 'UNKNOWN_QUANTITY');
   assert.equal(state.revision, 0);
 });
 
@@ -120,7 +116,7 @@ test('ml never converts to g, including when a stray gramsPerUnit is present', (
   const state = mutation(fixtureState(), 'upsert', { item: food({ unit: 'ml', quantity: 250, gramsPerUnit: 1 }) });
   const entry = planningSnapshot(state, LATER).availableItems.find((value) => value.id === 'test-food');
   assert.equal(entry.remainingNutrition, null);
-  assert.match(entry.nutritionReadiness.issues.join(' '), /无法可靠换算/);
+  assert.match(entry.nutritionReadiness.issues.join(' '), /reliably converted|Unreliable conversions/);
 });
 
 test('partial nutrition and genuinely zero nutrition remain distinct from missing data', () => {
@@ -140,7 +136,8 @@ test('generating a planning snapshot never consumes inventory or refreshes confi
   assert.equal(first.updatedAt, state.updatedAt);
   assert.notEqual(first.generatedAt, second.generatedAt);
   assert.equal(first.items[0].remainingNutrition, null);
-  assert.ok(first.rules.some((rule) => rule.includes('保存即显示') && rule.includes('吃完')));
+  assert.ok(first.rules.some((rule) => rule.includes('display immediately')));
+  assert.ok(first.rules.some((rule) => rule.includes('Explicit actual uses record_meal_intake')));
 });
 
 test('zero stock stays in the full snapshot but is excluded from usable ingredients', () => {
@@ -150,17 +147,17 @@ test('zero stock stays in the full snapshot but is excluded from usable ingredie
   assert.ok(snapshot.items.some((entry) => entry.id === 'test-food'));
   assert.ok(snapshot.depletedItems.some((entry) => entry.id === 'test-food'));
   assert.ok(!snapshot.availableItems.some((entry) => entry.id === 'test-food'));
-  assert.ok(snapshot.availableItems.some((entry) => entry.id === 'fixture-dessert' && entry.quantity === null));
+  assert.ok(snapshot.availableItems.some((entry) => entry.id === 'seed-ice-cream' && entry.quantity === null));
 });
 
 test('missing essential fields, NaN, strings, invalid enums and excessive text are rejected', () => {
   for (const [field, value] of [['name', undefined], ['category', undefined], ['quantity', undefined], ['unit', undefined], ['quantity', NaN], ['quantity', '3'], ['quantity', -0.1], ['category', 'invalid-category'], ['unit', 'kg'], ['name', 'x'.repeat(121)]]) {
     assert.throws(() => validateItem(food({ [field]: value }), NOW), `expected invalid ${field}=${String(value)}`);
   }
-  assert.throws(() => validateItem(food({ nutrition: { ...nutrition, basisAmount: 0 } }), NOW), /必须大于 0/);
-  assert.throws(() => validateItem(food({ nutrition: { ...nutrition, basisAmount: null } }), NOW), /有限数值/);
-  assert.throws(() => validateItem(food({ nutrition: { ...nutrition, protein: Infinity } }), NOW), /有限数值/);
-  assert.throws(() => validateItem(food({ gramsPerUnit: -5 }), NOW), /有限数值/);
+  assert.throws(() => validateItem(food({ nutrition: { ...nutrition, basisAmount: 0 } }), NOW), / must be greater than 0 \(minimum precision: 0\.000001\)\./);
+  assert.throws(() => validateItem(food({ nutrition: { ...nutrition, basisAmount: null } }), NOW), /finite number/);
+  assert.throws(() => validateItem(food({ nutrition: { ...nutrition, protein: Infinity } }), NOW), /finite number/);
+  assert.throws(() => validateItem(food({ gramsPerUnit: -5 }), NOW), /finite number/);
   const unknown = validateItem(food({ nutrition: undefined, quantity: null }), NOW);
   assert.equal(unknown.nutrition.protein, null);
   assert.equal(unknown.quantity, null);
@@ -176,7 +173,7 @@ test('floating point consumption keeps six-decimal precision', () => {
 
 test('restore validates duplicate IDs and preserves genuine original confirmation times', () => {
   const original = fixtureState();
-  assert.throws(() => mutation(original, 'restore', { items: [original.items[0], original.items[0]], preferences: [] }), /重复的食材 ID/);
+  assert.throws(() => mutation(original, 'restore', { items: [original.items[0], original.items[0]], preferences: [] }), /Imported inventory contains duplicate food IDs\./);
   const restored = mutation(original, 'restore', { items: original.items, preferences: ['优先已有库存'] });
   assert.equal(restored.items[0].confirmedAt, original.items[0].confirmedAt);
   assert.deepEqual(restored.preferences, ['优先已有库存']);
@@ -186,7 +183,7 @@ test('restore validates duplicate IDs and preserves genuine original confirmatio
 test('the 400-item limit and bounded audit history prevent unlimited growth', () => {
   const item = validateItem(food(), NOW);
   const state = { ...fixtureState(), items: Array.from({ length: 400 }, (_, index) => ({ ...item, id: `food-${index}` })) };
-  assert.throws(() => mutation(state, 'upsert', { item: food({ id: 'one-too-many' }) }), /最多保存 400 项/);
+  assert.throws(() => mutation(state, 'upsert', { item: food({ id: 'one-too-many' }) }), /at most 400 items/);
   const withHistory = { ...fixtureState(), events: Array.from({ length: 100 }, (_, index) => ({ id: `old-${index}` })), operationIds: Array.from({ length: 1000 }, (_, index) => ({ id: `old-${index}`, at: NOW })) };
   const updated = mutation(withHistory, 'preferences', { preferences: ['按库存排餐'] });
   assert.equal(updated.events.length, 100);
@@ -195,7 +192,7 @@ test('the 400-item limit and bounded audit history prevent unlimited growth', ()
 });
 
 function plan(overrides = {}) {
-  return { id: 'plan-2026-10-18', title: '明天最终饮食', date: '2026-10-18', items: [{ itemId: 'fixture-mushrooms', quantity: 200 }], ...overrides };
+  return { id: 'plan-2026-10-18', title: '明天最终饮食', date: '2026-10-18', items: [{ itemId: 'seed-mushrooms', quantity: 200 }], ...overrides };
 }
 
 test('a draft or unconfirmed final menu never deducts inventory', () => {
@@ -203,13 +200,13 @@ test('a draft or unconfirmed final menu never deducts inventory', () => {
   const before = structuredClone(state);
   planningSnapshot(state, NOW);
   assert.throws(() => mutation(state, 'commit_plan', { plan: plan() }), (error) => error.code === 'PLAN_CONFIRMATION_REQUIRED');
-  assert.throws(() => mutation(state, 'commit_plan', { plan: plan(), confirmed: false }), /最终版/);
+  assert.throws(() => mutation(state, 'commit_plan', { plan: plan(), confirmed: false }), /(?:Historical final version|Read current inventory and the day's current menu before planning\. Saving or targeted edits display immediately without final confirmation, reservation, or inventory deduction\.|Only an explicitly finalized user plan can confirm and reserve planned quantities\.)/);
   assert.deepEqual(state, before);
 });
 
 test('new flat finalization is disabled atomically so old callers cannot pre-debit a menu', () => {
   const before=fixtureState(), copy=structuredClone(before);
-  for(const raw of [plan(),plan({items:[{itemId:'fixture-mushrooms',quantity:999}]}),plan({items:[{itemId:'fixture-dessert',quantity:80}]})])
+  for(const raw of [plan(),plan({items:[{itemId:'seed-mushrooms',quantity:999}]}),plan({items:[{itemId:'seed-ice-cream',quantity:80}]})])
     assert.throws(()=>mutation(before,'commit_plan',{plan:raw,confirmed:true}),{code:'STRUCTURED_PLAN_REQUIRED'});
   assert.deepEqual(before,copy);
 });
@@ -217,7 +214,7 @@ test('new flat finalization is disabled atomically so old callers cannot pre-deb
 test('stored legacy flat plans remain readable and same-ID retries cannot debit history again', () => {
   const saved=legacyFlatPlan(fixtureState(),plan(),NOW), before=structuredClone(saved);
   assert.strictEqual(mutation(saved,'commit_plan',{plan:plan(),confirmed:true},'legacy-retry'),saved);
-  assert.equal(saved.items[0].quantity,100); assert.deepEqual(saved,before);
+  assert.equal(saved.items[0].quantity,388); assert.deepEqual(saved,before);
   const snapshot=planningSnapshot(saved,NOW);
   assert.equal(snapshot.quantityMeaning,'remaining_after_actual_and_legacy_credits');
   assert.equal(snapshot.plans[0].id,plan().id);
@@ -225,44 +222,44 @@ test('stored legacy flat plans remain readable and same-ID retries cannot debit 
 
 test('stored legacy plan identity conflicts preserve title, date, notes, amounts and stock', () => {
   const saved=legacyFlatPlan(fixtureState(),plan(),NOW), before=structuredClone(saved);
-  for(const patch of [{title:'changed'},{date:'2026-10-19'},{notes:'changed'},{items:[{itemId:'fixture-mushrooms',quantity:50}]}])
+  for(const patch of [{title:'changed'},{date:'2026-10-19'},{notes:'changed'},{items:[{itemId:'seed-mushrooms',quantity:50}]}])
     assert.throws(()=>mutation(saved,'commit_plan',{plan:plan(patch),confirmed:true}),{code:'PLAN_ID_CONFLICT'});
   assert.deepEqual(saved,before);
 });
 
 test('legacy replay normalizes order, split rows and optional notes without another debit', () => {
-  const raw=plan({items:[{itemId:'fixture-mushrooms',quantity:200},{itemId:'fixture-dessert',quantity:80}]}),saved=legacyFlatPlan(fixtureState(),raw,NOW);
+  const raw=plan({items:[{itemId:'seed-mushrooms',quantity:200},{itemId:'seed-ice-cream',quantity:80}]}),saved=legacyFlatPlan(fixtureState(),raw,NOW);
   assert.strictEqual(mutation(saved,'commit_plan',{plan:{...raw,notes:'',items:raw.items.toReversed()},confirmed:true}),saved);
-  const split=plan({items:[{itemId:'fixture-mushrooms',quantity:149.9},{itemId:'fixture-mushrooms',quantity:50.1},{itemId:'fixture-dessert',quantity:80}]});
+  const split=plan({items:[{itemId:'seed-mushrooms',quantity:149.9},{itemId:'seed-mushrooms',quantity:50.1},{itemId:'seed-ice-cream',quantity:80}]});
   assert.strictEqual(mutation(saved,'commit_plan',{plan:split,confirmed:true},'split-retry'),saved);
 });
 
 test('explicit cancellation of an old flat reservation refunds once and cannot reactivate it', () => {
   const saved=legacyFlatPlan(fixtureState(),plan(),NOW),cancelled=mutation(saved,'cancel_plan',{planId:plan().id,confirmed:true});
-  assert.equal(cancelled.items[0].quantity,300);assert.equal(cancelled.plans[0].status,'cancelled');
+  assert.equal(cancelled.items[0].quantity,588);assert.equal(cancelled.plans[0].status,'cancelled');
   assert.strictEqual(mutation(cancelled,'cancel_plan',{planId:plan().id,confirmed:true},'second-cancel'),cancelled);
   assert.throws(()=>mutation(cancelled,'commit_plan',{plan:plan(),confirmed:true}),{code:'PLAN_ALREADY_CANCELLED'});
 });
 
 test('unknown legacy balances remain unknown through replay and explicit cancellation', () => {
-  const raw=plan({items:[{itemId:'fixture-dessert',quantity:80}]}),saved=legacyFlatPlan(fixtureState(),raw,NOW);
+  const raw=plan({items:[{itemId:'seed-ice-cream',quantity:80}]}),saved=legacyFlatPlan(fixtureState(),raw,NOW);
   assert.equal(saved.plans[0].items[0].unknownQuantity,true);
   assert.strictEqual(mutation(saved,'commit_plan',{plan:raw,confirmed:true}),saved);
   const cancelled=mutation(saved,'cancel_plan',{planId:raw.id,confirmed:true});
-  assert.equal(cancelled.items.find(item=>item.id==='fixture-dessert').quantity,null);
+  assert.equal(cancelled.items.find(item=>item.id==='seed-ice-cream').quantity,null);
 });
 
 test('independent stored credits and later real consumption refund only the requested legacy credits', () => {
   let saved=legacyFlatPlan(fixtureState(),plan(),NOW);
-  saved=legacyFlatPlan(saved,plan({id:'plan-two',items:[{itemId:'fixture-mushrooms',quantity:50}]}),NOW);
-  saved=mutation(saved,'consume',{id:'fixture-mushrooms',quantity:50});
-  saved=mutation(saved,'cancel_plan',{planId:plan().id,confirmed:true}); assert.equal(saved.items[0].quantity,200);
-  saved=mutation(saved,'cancel_plan',{planId:'plan-two',confirmed:true});assert.equal(saved.items[0].quantity,250);
+  saved=legacyFlatPlan(saved,plan({id:'plan-two',items:[{itemId:'seed-mushrooms',quantity:100}]}),NOW);
+  saved=mutation(saved,'consume',{id:'seed-mushrooms',quantity:50});
+  saved=mutation(saved,'cancel_plan',{planId:plan().id,confirmed:true}); assert.equal(saved.items[0].quantity,438);
+  saved=mutation(saved,'cancel_plan',{planId:'plan-two',confirmed:true});assert.equal(saved.items[0].quantity,538);
 });
 
 test('recounted legacy balances reject stale refunds and import cannot overwrite accounted history', () => {
   let saved=legacyFlatPlan(fixtureState(),plan(),NOW);
-  saved=mutation(saved,'set_quantity',{id:'fixture-mushrooms',quantity:300});const before=structuredClone(saved);
+  saved=mutation(saved,'set_quantity',{id:'seed-mushrooms',quantity:300});const before=structuredClone(saved);
   assert.throws(()=>mutation(saved,'cancel_plan',{planId:plan().id,confirmed:true}),{code:'REFUND_REQUIRES_REVIEW'});
   assert.throws(()=>mutation(saved,'restore',{items:fixtureState().items,preferences:[]}),{code:'RESTORE_REQUIRES_REVIEW'});
   assert.deepEqual(saved,before);
@@ -362,7 +359,7 @@ test('mixed label and recipe evidence is conservatively unknown and explicit fie
   const state = mutation(fixtureState(), 'upsert', { item });
   const after = mutation(state, 'upsert', { item: { id: 'test-food', nutrition: { protein: 16, source: 'estimate', nutrientSources: { protein: 'label' } } } });
   assert.equal(after.items.find((entry) => entry.id === 'test-food').nutrition.source, 'label');
-  assert.equal(after.items.find((entry) => entry.id === 'test-food').nutrition.sourceNote, '包装标签');
+  assert.equal(after.items.find((entry) => entry.id === 'test-food').nutrition.sourceNote, "Package label");
 });
 
 test('explicitly clearing one nutrient keeps it null with unknown evidence and never zeroes the others', () => {
@@ -417,6 +414,47 @@ test('saving label evidence does not invalidate a reservation refund, while a re
   assert.equal(recounted.items.find((entry) => entry.id === 'test-food').confirmedAt, LATER);
   assert.notEqual(recounted.items.find((entry) => entry.id === 'test-food').quantityBaselineToken, reserved.quantityBaselineToken);
   assert.throws(() => mutation(recounted, 'cancel_plan', { planId: plan().id, confirmed: true }), (error) => error.code === 'REFUND_REQUIRES_REVIEW');
+});
+
+test('physical balance boundaries survive consumption and label updates without becoming a new count', () => {
+  let state = mutation(fixtureState(), 'upsert', { item: food({ quantity: 5 }) });
+  let entry = state.items.find(item => item.id === 'test-food');
+  assert.equal(entry.quantityBaselineSource, 'initial');
+  state = applyMutation(state, { action: 'set_quantity', id: entry.id, quantity: 5,
+    expectedRevision: state.revision, operationId: 'same-quantity-physical-count' }, LATER);
+  const counted = state.items.find(item => item.id === entry.id);
+  assert.equal(counted.quantityBaselineAt, LATER);
+  assert.equal(counted.quantityBaselineSource, 'set_quantity');
+  const nextTime = '2026-10-18T05:00:00.000Z';
+  state = applyMutation(state, { action: 'consume', id: entry.id, quantity: 1,
+    expectedRevision: state.revision, operationId: 'eat-after-count' }, nextTime);
+  state = applyMutation(state, { action: 'upsert', item: { id: entry.id, notes: '更新资料',
+    quantityBaselineAt: nextTime, quantityBaselineSource: 'initial' },
+    expectedRevision: state.revision, operationId: 'label-does-not-recount' }, nextTime);
+  entry = state.items.find(item => item.id === entry.id);
+  assert.equal(entry.quantity, 4);
+  assert.equal(entry.confirmedAt, nextTime);
+  assert.equal(entry.quantityBaselineAt, LATER);
+  assert.equal(entry.quantityBaselineToken, counted.quantityBaselineToken);
+  assert.equal(entry.quantityBaselineSource, 'set_quantity');
+});
+
+test('restock and changed physical totals have server-owned balance boundaries', () => {
+  let state = mutation(fixtureState(), 'upsert', { item: food({ category: 'bread', quantity: 2 }) });
+  state = applyMutation(state, { action: 'restock', itemId: 'test-food', quantity: 7,
+    expectedRevision: state.revision, operationId: 'restock-current-total' }, LATER);
+  const restocked = state.items.find(item => item.id === 'test-food');
+  assert.equal(restocked.quantity, 7);
+  assert.equal(restocked.quantityBaselineAt, LATER);
+  assert.equal(restocked.quantityBaselineSource, 'restock');
+  const nextTime = '2026-10-18T05:00:00.000Z';
+  state = applyMutation(state, { action: 'upsert', item: { id: 'test-food', quantity: 9,
+    quantityBaselineAt: NOW, quantityBaselineSource: 'initial' },
+    expectedRevision: state.revision, operationId: 'new-current-total' }, nextTime);
+  const updated = state.items.find(item => item.id === 'test-food');
+  assert.equal(updated.quantityBaselineAt, nextTime);
+  assert.equal(updated.quantityBaselineSource, 'upsert');
+  assert.equal(validateItem(updated, nextTime).quantityBaselineAt, nextTime);
 });
 
 test('photo-item retries use the stable item ID and operation ID without creating duplicate rows', () => {

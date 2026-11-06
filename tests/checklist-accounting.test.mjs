@@ -11,7 +11,7 @@ function food(id, quantity = 1000, unit = 'g', gramsPerUnit = null) {
   return validateItem({ id, name: id, quantity, unit, gramsPerUnit, category: id === 'creatine' ? 'supplement' : 'prepared',
     nutrition: { basisAmount: 100, basisUnit: unit === '袋' ? 'g' : unit, kcal: 200, protein: 20, carbs: 10, fat: 5, source: 'label' } }, NOW);
 }
-function menu() { return { id: 'daily-food-2026-10-26', date: '2026-10-26', title: '本机验证清单四餐',
+function menu() { return { id: 'daily-food-2026-10-26', date: '2026-10-26', title: "Local four-meal checklist fixture",
   meals: ['breakfast', 'lunch', 'snack', 'dinner'].map(id => ({ id, slot: id, title: id,
     plannedItems: [{ id: `${id}-rice`, itemId: 'rice', quantity: 100 }] })),
   supplementDoses: [{ id: 'creatine-am', itemId: 'creatine', plannedQuantity: 5, timingSlot: 'breakfast' }] }; }
@@ -80,7 +80,7 @@ test('pending cloud drafts cannot be submitted, replaced or hidden by a quick ch
 test('unknown checkbox quantities and unknown external actual cannot be guessed by a quick check', () => {
   let state = fixture(), before = clone(state);
   assert.throws(() => check(state, draft(state, { consumed: [consumed('lunch', null)] })), { code: 'CHECKLIST_QUANTITY_REQUIRED' }); assert.deepEqual(state, before);
-  state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'lunch', entries: [{ id: 'unknown-chat', itemId: 'rice', quantity: null, unit: 'g', sourceText: '用户已吃，数量未报' }] }); before = clone(state);
+  state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'lunch', entries: [{ id: 'unknown-chat', itemId: 'rice', quantity: null, unit: 'g', sourceText: "The user ate, quantity unreported" }] }); before = clone(state);
   assert.throws(() => check(state, draft(state, { consumed: [consumed('lunch', 100)] })), { code: 'INTAKE_ACTUAL_REQUIRES_REVIEW' }); assert.deepEqual(state, before);
 });
 
@@ -102,11 +102,11 @@ test('partial edit transfers its remaining food while accounting only actual, an
 });
 
 test('an explicit correction preserves external actual ID and audit; unconfirmed overwrite is atomic refusal', () => {
-  let state = fixture(); state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'lunch', entries: [{ id: 'external-chat', itemId: 'rice', quantity: 70, unit: 'g', sourceText: '午餐吃了70g' }] });
+  let state = fixture(); state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'lunch', entries: [{ id: 'external-chat', itemId: 'rice', quantity: 70, unit: 'g', sourceText: "Ate 70 g at lunch" }] });
   const before = clone(state); assert.throws(() => check(state, draft(state, { consumed: [consumed('lunch', 40)] })), { code: 'EXISTING_ACTUAL_CONFIRMATION_REQUIRED' }); assert.deepEqual(state, before);
   state = check(state, draft(state, { consumed: [consumed('lunch', 40, { correctExistingActuals: true })] }));
   assert.equal(stock(state), 960); const entry = plan(state).meals[1].actualEntries.find(entry => entry.id === 'external-chat');
-  assert.equal(entry.quantity, 40); assert.equal(entry.correctionHistory[0].quantity, 70); assert.equal(entry.correctionHistory[0].sourceText, '午餐吃了70g');
+  assert.equal(entry.quantity, 40); assert.equal(entry.correctionHistory[0].quantity, 70); assert.equal(entry.correctionHistory[0].sourceText, "Ate 70 g at lunch");
 });
 
 test('bag gram conversion uses frozen planned portion even when live inventory grams per package changes', () => {
@@ -180,8 +180,8 @@ test('legacy completion undone then drag and recheck uses the existing reservati
 test('transferring snack into a completed breakfast preserves unanchored Chat actual and accounts only the newly eaten portion', () => {
   let state = fixture();
   state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'breakfast',
-    entries: [{ id: 'chat-breakfast', itemId: 'rice', quantity: 100, unit: 'g', sourceText: '用户早餐实际100g' }] });
-  state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'breakfast', mode: 'complete', sourceText: '早餐完成' });
+    entries: [{ id: 'chat-breakfast', itemId: 'rice', quantity: 100, unit: 'g', sourceText: "Actual breakfast: 100 g" }] });
+  state = mutation(state, 'record_meal_intake', { planId: plan(state).id, mealId: 'breakfast', mode: 'complete', sourceText: "Breakfast completed" });
   const before = clone(state), command = buildChecklistAction(plan(state), state.items,
     { type: 'move_remaining', fromMealId: 'snack', lineIds: ['snack-rice'], toMealId: 'breakfast', quantity: 40 }, { draftId: 'snack-to-breakfast' });
   const payload = { action: 'apply_checklist_intake', operationId: 'snack-to-breakfast-once', expectedRevision: state.revision,

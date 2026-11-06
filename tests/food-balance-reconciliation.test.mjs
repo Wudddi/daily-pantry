@@ -9,15 +9,15 @@ const copy = value => structuredClone(value);
 const mutate = (state, action, fields, operationId = `reconciliation-test-${++seq}`) => applyMutation(state, { action, ...fields, operationId, expectedRevision: state.revision }, AT);
 const balance = (state, id = 'food') => state.items.find(item => item.id === id);
 const current = state => state.plans[0];
-const report = (state, quantity) => mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'correct', entries: [{ id: 'actual-food', itemId: 'food', quantity, unit: 'g', sourceText: `用户更正实际吃了${quantity}g。` }], sourceText: '明确更正原实际数量。' });
+const report = (state, quantity) => mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'correct', entries: [{ id: 'actual-food', itemId: 'food', quantity, unit: 'g', sourceText: `用户更正实际吃了${quantity}g。` }], sourceText: "Explicit correction of the original actual quantity." });
 
-function fixture(name = '西兰花', actualQuantity = 200) {
-  let state = { schemaVersion: 1, revision: 0, updatedAt: AT, preferences: ['旧习惯保留'], items: [validateItem({ id: 'food', name, category: 'vegetable', quantity: null, unit: 'g', nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 30, protein: 3, carbs: 5, fat: 0, source: 'label' } }, AT), validateItem({ id: 'other', name: '其他食物', category: 'vegetable', quantity: 500, unit: 'g' }, AT)], plans: [], events: [], operationIds: [], dietHistory: [{ id: 'history', sourceText: '不可覆盖的历史原话' }] };
-  state = mutate(state, 'save_meal_plan_draft', { plan: { id: 'day', date: DAY, title: '既有菜单', meals: [{ id: 'dinner', slot: 'dinner', title: '晚餐', plannedItems: [{ id: 'line-food', itemId: 'food', quantity: actualQuantity, unit: 'g' }] }], supplementDoses: [] } });
-  state = mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'complete', entries: [{ id: 'actual-food', itemId: 'food', quantity: actualQuantity, unit: 'g', sourceText: '用户明确报告实际食用。' }], sourceText: '晚餐吃完。' });
+function fixture(name = "Broccoli", actualQuantity = 200) {
+  let state = { schemaVersion: 1, revision: 0, updatedAt: AT, preferences: ["Keep existing preference"], items: [validateItem({ id: 'food', name, category: 'vegetable', quantity: null, unit: 'g', nutrition: { basisAmount: 100, basisUnit: 'g', kcal: 30, protein: 3, carbs: 5, fat: 0, source: 'label' } }, AT), validateItem({ id: 'other', name: "Other food", category: 'vegetable', quantity: 500, unit: 'g' }, AT)], plans: [], events: [], operationIds: [], dietHistory: [{ id: 'history', sourceText: "Historical source text that cannot be overwritten" }] };
+  state = mutate(state, 'save_meal_plan_draft', { plan: { id: 'day', date: DAY, title: "Existing menu", meals: [{ id: 'dinner', slot: 'dinner', title: "Dinner", plannedItems: [{ id: 'line-food', itemId: 'food', quantity: actualQuantity, unit: 'g' }] }], supplementDoses: [] } });
+  state = mutate(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'complete', entries: [{ id: 'actual-food', itemId: 'food', quantity: actualQuantity, unit: 'g', sourceText: "The user explicitly reported eating." }], sourceText: "Dinner completed." });
   return state;
 }
-const reconcile = (state, quantity, extra = {}) => mutate(state, 'reconcile_food_inventory', { itemId: 'food', quantity, confirmed: true, sourceText: '用户明确盘点/计算后的当前余量，已经包含这些旧进食。', planIds: previewFoodBalanceReconciliation(state, 'food', AT).planIds, ...extra });
+const reconcile = (state, quantity, extra = {}) => mutate(state, 'reconcile_food_inventory', { itemId: 'food', quantity, confirmed: true, sourceText: "The user explicitly counted the current remaining stock, including this prior intake.", planIds: previewFoodBalanceReconciliation(state, 'food', AT).planIds, ...extra });
 
 test('Kensington unknown-balance60g credit is acknowledged at620g without a second subtraction and later corrections settle only their delta', () => {
   const before = fixture('Kensington Sourdough', 60), old = copy(before), oldActual = copy(current(before).meals);
@@ -41,15 +41,15 @@ test('Kensington unknown-balance60g credit is acknowledged at620g without a seco
 test('broccoli200g saved but uncredited actual can be acknowledged at300g once, preserving original facts and enabling delta refunds', () => {
   const before = fixture('PC Broccoli Florets500g', 200);
   current(before).accountedDebits = []; current(before).items = [];
-  current(before).inventoryAccounting = 'pending_reconciliation'; current(before).accountingIssues = [{ itemId: 'food', code: 'ATOMIC_ACCOUNTING_PENDING', message: '同次其他食物待核，200g未扣。' }];
+  current(before).inventoryAccounting = 'pending_reconciliation'; current(before).accountingIssues = [{ itemId: 'food', code: 'ATOMIC_ACCOUNTING_PENDING', message: "Another food in this operation is pending; 200 g has not been debited." }];
   balance(before).status = 'pending';
   const actual = copy(current(before).meals), other = copy(balance(before, 'other'));
-  let state = reconcile(before, 300, { sourceText: '原袋500g完整，实际已吃200g，无其他使用，所以当前300g；这200g已经包含在当前余量中。' });
+  let state = reconcile(before, 300, { sourceText: "Original bag was 500 g; 200 g eaten and no other use, leaving 300 g. The current balance already includes that 200 g." });
   assert.equal(balance(state).quantity, 300); assert.equal(balance(state).status, 'available');
   assert.equal(current(state).inventoryAccounting, 'settled'); assert.deepEqual(current(state).accountingIssues, []);
   assert.equal(current(state).accountedDebits[0].quantity, 200); assert.equal(current(state).items[0].quantity, 200);
   assert.deepEqual(current(state).meals, actual); assert.deepEqual(balance(state, 'other'), other);
-  assert.equal(state.inventoryReconciliationHistory[0].sourceText, '原袋500g完整，实际已吃200g，无其他使用，所以当前300g；这200g已经包含在当前余量中。');
+  assert.equal(state.inventoryReconciliationHistory[0].sourceText, "Original bag was 500 g; 200 g eaten and no other use, leaving 300 g. The current balance already includes that 200 g.");
   state = report(state, 180); assert.equal(balance(state).quantity, 320);
   state = report(state, 180); assert.equal(balance(state).quantity, 320, 'same desired actual does not refund twice');
 });
@@ -58,7 +58,7 @@ test('other item debits, unknown problems, actuals and historical records remain
   const before = fixture();
   const otherLine = { itemId: 'other', name: 'other', quantity: 20, unit: 'g', unknownBalance: false, baselineToken: 'old-token' };
   current(before).accountedDebits.push(copy(otherLine)); current(before).items.push(copy(otherLine));
-  current(before).inventoryAccounting = 'pending_reconciliation'; current(before).accountingIssues = [{ itemId: 'food', code: 'ATOMIC_ACCOUNTING_PENDING', message: '目标问题' }, { itemId: 'other', code: 'BASELINE_REQUIRES_REVIEW', message: '其他问题不能顺便解锁' }];
+  current(before).inventoryAccounting = 'pending_reconciliation'; current(before).accountingIssues = [{ itemId: 'food', code: 'ATOMIC_ACCOUNTING_PENDING', message: "Target issue" }, { itemId: 'other', code: 'BASELINE_REQUIRES_REVIEW', message: "Other issues must not be unlocked as a side effect" }];
   balance(before, 'other').status = 'pending';
   const old = copy(before), state = reconcile(before, 300);
   assert.deepEqual(balance(state, 'other'), balance(before, 'other'));
@@ -107,7 +107,7 @@ test('confirmation, source, explicit numbers and allowed fields are required; ze
 
 test('durable original-payload retries survive short ledger eviction without restoring old balances or duplicating history', () => {
   let state = fixture();
-  const payload = { action: 'reconcile_food_inventory', itemId: 'food', quantity: 300, confirmed: true, sourceText: '用户明确当前300g，包含原200g消耗。', planIds: ['day'], operationId: 'reconcile-once', expectedRevision: state.revision };
+  const payload = { action: 'reconcile_food_inventory', itemId: 'food', quantity: 300, confirmed: true, sourceText: "The user explicitly confirmed 300 g remaining, including the original 200 g intake.", planIds: ['day'], operationId: 'reconcile-once', expectedRevision: state.revision };
   state = applyMutation(state, payload, AT);
   const firstHistory = copy(state.inventoryReconciliationHistory);
   for (let i = 0; i < 1001; i++) state = mutate(state, 'set_quantity', { id: 'food', quantity: 310 + i % 2 });

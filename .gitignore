@@ -27,6 +27,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -55,11 +56,3 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
-
-# Private records and local exports
-*.log
-*.zip
-*.tar.gz
-/recordings/
-/exports/
-/local-data/

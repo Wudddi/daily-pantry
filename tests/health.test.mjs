@@ -71,7 +71,7 @@ test('invalid dates, coercions, nonfinite values, negatives and impossible measu
   for (const date of ['2025-02-29', '2026-02-30', '2026-13-01', '10/17/2026']) assert.throws(() => validateHealthDate(date));
   for (const weightKg of [0, -1, NaN, Infinity, '64.2']) assert.throws(() => validateMeasurement(measurement({ weightKg }), NOW));
   assert.throws(() => validateMeasurement(measurement({ bodyFatPct: 101 }), NOW));
-  assert.throws(() => validateMeasurement(measurement({ weightKg: null }), NOW), /至少记录/);
+  assert.throws(() => validateMeasurement(measurement({ weightKg: null }), NOW), /Record at least one of weight, waist, or body fat\. Unknown values do not need to be guessed\./);
   assert.equal(validateMeasurement(measurement({ weightKg: null, waistCm: 80 }), NOW).weightKg, null);
   assert.equal(validateMeasurement(measurement(), NOW).waistCm, null);
 });
@@ -80,7 +80,7 @@ test('duplicate dates conflict even when archived; updates must target the exist
   let state = mutate(empty(), 'upsert_measurement', { measurement: measurement() });
   assert.throws(() => mutate(state, 'upsert_measurement', { measurement: measurement({ id: 'new-id' }) }), (error) => error.status === 409 && error.code === 'MEASUREMENT_DATE_CONFLICT');
   state = mutate(state, 'archive_measurement', { id: 'weight-one', archived: true });
-  assert.throws(() => mutate(state, 'upsert_measurement', { measurement: measurement({ id: 'another-id' }) }), /已有身体记录/);
+  assert.throws(() => mutate(state, 'upsert_measurement', { measurement: measurement({ id: 'another-id' }) }), /A body measurement already exists for this day \(ID: /);
   const corrected = mutate(state, 'upsert_measurement', { measurement: measurement({ weightKg: 64.3 }) });
   assert.equal(corrected.measurements.length, 1);
   assert.equal(corrected.measurements[0].archived, true);
@@ -132,7 +132,7 @@ test('per-set original reporting, pounds and single-hand load basis are preserve
   assert.equal(unknown.unit, null);
   assert.equal(unknown.loadBasis, 'unknown');
   assert.equal(unknown.rir, null);
-  assert.throws(() => validateTrainingSession(session({ status: undefined }), NOW), /明确区分/);
+  assert.throws(() => validateTrainingSession(session({ status: undefined }), NOW), /Explicitly distinguish completed training from a planned session\./);
   assert.throws(() => validateTrainingSession(session({ exercises: [{ name: '划船', sets: [set({ unit: '斤' })] }] }), NOW));
   assert.throws(() => validateTrainingSession(session({ exercises: [{ name: '划船', sets: [set({ rpe: 11 })] }] }), NOW));
 });
@@ -327,7 +327,7 @@ test('correcting one set merges only the provided changes and preserves the full
   assert.equal(corrected.events.at(-1).previous.set.sourceText, 'DEMO synthetic second set: 10 reps.');
   assert.deepEqual(state, before);
   assert.strictEqual(mutate(corrected, 'correct_training_set', { sessionId: 'session-one', setId: 'second-set', set: { reps: 11 } }), corrected);
-  assert.throws(() => mutate(corrected, 'correct_training_set', { sessionId: 'session-one', setId: 'second-set', set: { setId: 'different-id' } }), /不能改变/);
+  assert.throws(() => mutate(corrected, 'correct_training_set', { sessionId: 'session-one', setId: 'second-set', set: { setId: 'different-id' } }), /A correction cannot change the training set ID\./);
 });
 
 test('legacy set IDs are stable through nonmutating reads and can target a single correction', () => {
@@ -355,10 +355,10 @@ test('legacy IDs avoid explicit ID collisions and full-session validation reject
 });
 
 test('equipment disambiguates repeated movement names without changing a different machine', () => {
-  const state = mutate(empty(), 'upsert_session', { session: session({ exercises: [{ name: '划船', equipment: '哑铃', sets: [set()] }, { name: '划船', equipment: '器械', sets: [set({ loadBasis: 'machine' })] }] }) });
+  const state = mutate(empty(), 'upsert_session', { session: session({ exercises: [{ name: '划船', equipment: '哑铃', sets: [set()] }, { name: '划船', equipment: "Equipment", sets: [set({ loadBasis: 'machine' })] }] }) });
   const one = set({ setId: 'row-next', loadBasis: 'machine' });
   assert.throws(() => append(state, [one], { exerciseName: '划船', equipment: undefined }), (error) => error.code === 'AMBIGUOUS_EXERCISE');
-  const after = append(state, [one], { exerciseName: '划船', equipment: '器械' });
+  const after = append(state, [one], { exerciseName: '划船', equipment: "Equipment" });
   assert.equal(after.sessions[0].exercises[0].sets.length, 1);
   assert.equal(after.sessions[0].exercises[1].sets.length, 2);
 });
@@ -374,13 +374,13 @@ test('planned and archived sessions reject actual-group append and unknown sessi
 
 test('append requires stable IDs, preserves unknown values and enforces per-movement capacity atomically', () => {
   const state = mutate(empty(), 'upsert_session', { session: session({ exercises: [] }) });
-  assert.throws(() => append(state, [set()]), /训练组 ID/);
+  assert.throws(() => append(state, [set()]), /Training set ID/);
   const unknown = append(state, [{ setId: 'unknown-unit', sourceText: 'DEMO synthetic set: 12 reps; load unknown.', reps: 12 }]);
   const recorded = unknown.sessions[0].exercises[0].sets[0];
   assert.equal(recorded.weight, null);
   assert.equal(recorded.unit, null);
   assert.equal(recorded.loadBasis, 'unknown');
   const full = mutate(empty(), 'upsert_session', { session: session({ exercises: [{ name: '哑铃弯举', equipment: '哑铃', sets: Array.from({ length: 100 }, () => set()) }] }) });
-  assert.throws(() => append(full, [set({ setId: 'too-many' })]), /最多保存 100 组/);
+  assert.throws(() => append(full, [set({ setId: 'too-many' })]), /Each exercise supports at most 100 saved sets\. Old sets are not automatically deleted\./);
   assert.equal(full.sessions[0].exercises[0].sets.length, 100);
 });

@@ -10,17 +10,17 @@ const copy = value => structuredClone(value);
 const FACT_KEYS = ['actualEntries', 'actualTime', 'actualTimeText', 'completionReportedAt', 'sourceText', 'reportHistory', 'state'];
 const facts = meal => Object.fromEntries(FACT_KEYS.map(key => [key, meal[key]]));
 function food(id, quantity, unit, category = 'prepared') {
-  return validateItem({ id, name: id, quantity, unit, category, nutrition: { basisAmount: 1, basisUnit: unit, kcal: 100, protein: 10, carbs: 12, fat: 2, source: 'label', sourceText: '原食品标签和已确认口径' } }, NOW);
+  return validateItem({ id, name: id, quantity, unit, category, nutrition: { basisAmount: 1, basisUnit: unit, kcal: 100, protein: 10, carbs: 12, fat: 2, source: 'label', sourceText: "Original food label and verified basis" } }, NOW);
 }
 function fixture() {
   return { schemaVersion: 1, revision: 0, updatedAt: NOW, events: [], operationIds: [], preferences: [], plans: [], items: [food('pasta', 1000, 'g'), food('bagel', 5, '个', 'bread'), food('beef', 10, '袋'), food('veg', 1000, 'g', 'vegetable'), food('oil', 10, '粒', 'supplement'), food('beta', 100, 'g', 'supplement')] };
 }
 function input() {
-  return { id: 'day', date: '2026-10-20', title: '完整三餐', notes: '当天原菜单', meals: [
-    { id: 'breakfast', slot: 'breakfast', title: '早餐', plannedTime: '08:00', plannedItems: [{ id: 'beef-line', itemId: 'beef', quantity: 1, sourceText: '原早餐' }] },
-    { id: 'lunch', slot: 'lunch', title: '午饭', plannedTime: '12:00', plannedItems: [{ id: 'veg-line', itemId: 'veg', quantity: 200, sourceText: '原午餐' }] },
-    { id: 'dinner', slot: 'dinner', title: '晚饭', plannedTime: '19:30', plannedTimeText: '训练后晚饭', plannedItems: [{ id: 'dinner-food', itemId: 'pasta', quantity: 110, sourceText: '原定干意面110g' }] },
-  ], supplementDoses: [{ id: 'fish-oil', itemId: 'oil', plannedQuantity: 1, timingSlot: 'breakfast', plannedMealId: 'breakfast', sourceText: '原鱼油安排' }, { id: 'beta-pre', itemId: 'beta', plannedQuantity: 1.6, timingSlot: 'pre_workout', requirement: 'optional', scheduled: false, sourceText: '可选剂次' }] };
+  return { id: 'day', date: '2026-10-20', title: "Complete three-meal menu", notes: "Original daily menu", meals: [
+    { id: 'breakfast', slot: 'breakfast', title: "Breakfast", plannedTime: '08:00', plannedItems: [{ id: 'beef-line', itemId: 'beef', quantity: 1, sourceText: "Original breakfast" }] },
+    { id: 'lunch', slot: 'lunch', title: "Lunch", plannedTime: '12:00', plannedItems: [{ id: 'veg-line', itemId: 'veg', quantity: 200, sourceText: "Original lunch" }] },
+    { id: 'dinner', slot: 'dinner', title: "Dinner", plannedTime: '19:30', plannedTimeText: "Post-workout dinner", plannedItems: [{ id: 'dinner-food', itemId: 'pasta', quantity: 110, sourceText: "Originally planned 110 g dry pasta" }] },
+  ], supplementDoses: [{ id: 'fish-oil', itemId: 'oil', plannedQuantity: 1, timingSlot: 'breakfast', plannedMealId: 'breakfast', sourceText: "Original fish-oil arrangement" }, { id: 'beta-pre', itemId: 'beta', plannedQuantity: 1.6, timingSlot: 'pre_workout', requirement: 'optional', scheduled: false, sourceText: "Optional dose" }] };
 }
 function apply(state, action, payload = {}, operationId = action + '-' + state.revision) { return applyMutation(state, { action, ...payload, operationId, expectedRevision: state.revision }, LATER); }
 function ready() { return apply(apply(fixture(), 'save_meal_plan_draft', { plan: input() }), 'commit_meal_plan', { planId: 'day', confirmed: true }); }
@@ -41,10 +41,10 @@ const plan = state => state.plans[0];
 const dinner = state => plan(state).meals.find(meal => meal.id === 'dinner');
 const quantity = (state, id) => state.items.find(item => item.id === id).quantity;
 const oldDinnerPlan = meal => Object.fromEntries(['slot', 'title', 'plannedTime', 'plannedTimeText', 'plannedItems'].map(key => [key, copy(meal[key])]));
-const replacement = { id: 'dinner', itemPatches: [{ id: 'dinner-food', itemId: 'bagel', quantity: 1, sourceText: '用户临时决定换成1个贝果' }] };
+const replacement = { id: 'dinner', itemPatches: [{ id: 'dinner-food', itemId: 'bagel', quantity: 1, sourceText: "The user chose a last-minute swap to 1 bagel" }] };
 function patch(state, mode, fields = {}, operationId) { return apply(state, 'patch_meal_plan', { planId: 'day', mode, ...(mode === 'apply' ? { confirmed: true } : {}), mealPatches: [replacement], ...fields }, operationId); }
 function completed(state) {
-  return apply(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'complete', actualTime: '20:10', actualTimeText: '实际晚饭20:10', sourceText: '临时换餐，意面没吃，吃了1个贝果', entries: [{ id: 'actual-pasta-zero', itemId: 'pasta', quantity: 0, unit: 'g', sourceText: '干意面实际0g，没有吃' }, { id: 'actual-bagel-one', itemId: 'bagel', quantity: 1, unit: '个', sourceText: '实际吃1个贝果' }] });
+  return apply(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'complete', actualTime: '20:10', actualTimeText: "Actual dinner at 20:10", sourceText: "Last-minute swap: no pasta; ate 1 bagel", entries: [{ id: 'actual-pasta-zero', itemId: 'pasta', quantity: 0, unit: 'g', sourceText: "Actual dry pasta: 0 g, not eaten" }, { id: 'actual-bagel-one', itemId: 'bagel', quantity: 1, unit: '个', sourceText: "Actually ate 1 bagel" }] });
 }
 function assertOtherRecords(after, before) {
   assert.deepEqual(plan(after).meals.filter(meal => meal.id !== 'dinner'), plan(before).meals.filter(meal => meal.id !== 'dinner'));
@@ -52,7 +52,7 @@ function assertOtherRecords(after, before) {
 }
 function assertActualUnchanged(after, before) { assert.deepEqual(facts(dinner(after)), facts(dinner(before))); }
 function changedMealInput(state) {
-  const raw = copy(dinner(state)); raw.plannedItems = [{ id: 'dinner-food', itemId: 'bagel', quantity: 1, unit: '个', sourceText: '用户确认改成贝果' }]; return raw;
+  const raw = copy(dinner(state)); raw.plannedItems = [{ id: 'dinner-food', itemId: 'bagel', quantity: 1, unit: '个', sourceText: "The user confirmed the bagel swap" }]; return raw;
 }
 
 test('saved menu changes appear before eating and optional adoption after actual intake cannot re-debit either food', () => {
@@ -80,7 +80,7 @@ test('completed dinner may save a current full-plan replacement while exact actu
   state = apply(state, 'commit_meal_plan', { planId: 'day', confirmed: true });
   assert.deepEqual(state.items, before.items); assertActualUnchanged(state, before); assertOtherRecords(state, before);
   assert.deepEqual(dinner(state).planRevisionHistory[0].previous, previousPlan);
-  assert.equal(dinner(state).planRevisionHistory[0].previous.plannedItems[0].nutritionSnapshot.nutrition.sourceText, '原食品标签和已确认口径');
+  assert.equal(dinner(state).planRevisionHistory[0].previous.plannedItems[0].nutritionSnapshot.nutrition.sourceText, "Original food label and verified basis");
 });
 
 test('direct patch and legacy revision both allow completed planned changes and retain actual quantities, times, sources and status', () => {
@@ -96,7 +96,7 @@ test('direct patch and legacy revision both allow completed planned changes and 
 
 test('partial actual intake deducts only the reported30g; a new planned bagel remains unconsumed through optional adoption', () => {
   let state = patch(ready(), 'draft');
-  state = apply(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', entries: [{ id: 'actual-pasta30', itemId: 'pasta', quantity: 30, unit: 'g', sourceText: '开吃后已吃干意面30g' }], actualTime: '19:50', sourceText: '先吃了一部分，剩余临时换贝果' });
+  state = apply(state, 'record_meal_intake', { planId: 'day', mealId: 'dinner', entries: [{ id: 'actual-pasta30', itemId: 'pasta', quantity: 30, unit: 'g', sourceText: "Already ate 30 g dry pasta" }], actualTime: '19:50', sourceText: "Ate part, then swapped the remainder to a bagel" });
   const before = copy(state);
   assert.equal(dinner(state).state, 'in_progress'); assert.equal(quantity(state, 'pasta'), 970);
   state = apply(state, 'commit_meal_plan', { planId: 'day', confirmed: true });
@@ -106,7 +106,7 @@ test('partial actual intake deducts only the reported30g; a new planned bagel re
 });
 
 test('nutrition retains max planned/actual while inventory reflects only actual30g regardless of subsequent planned quantity', () => {
-  let state = apply(ready(), 'record_meal_intake', { planId: 'day', mealId: 'dinner', entries: [{ id: 'actual-pasta30', itemId: 'pasta', quantity: 30, unit: 'g', sourceText: '实际吃30g' }] });
+  let state = apply(ready(), 'record_meal_intake', { planId: 'day', mealId: 'dinner', entries: [{ id: 'actual-pasta30', itemId: 'pasta', quantity: 30, unit: 'g', sourceText: "Actually ate 30 g" }] });
   const originalFacts = facts(dinner(state));
   state = patch(state, 'apply', { mealPatches: [{ id: 'dinner', itemPatches: [{ id: 'dinner-food', quantity: 80 }] }] });
   assert.equal(quantity(state, 'pasta'), 970);
@@ -159,20 +159,20 @@ test('already reported supplement identity/amount remains protected while meal p
 
 test('server audit immediately records saved current changes and survives normalization without trusting caller histories or actual fields', () => {
   let state = patch(completed(ready()), 'apply'); const before = copy(state);
-  const raw = copy(plan(state)); const changed = raw.meals.find(meal => meal.id === 'dinner'); changed.title = '第二次改计划标题'; changed.planRevisionHistory = [{ at: NOW, previous: { title: '伪造历史' } }]; changed.actualEntries = []; changed.actualTime = null; changed.sourceText = '伪造进食原话'; changed.state = 'reserved';
+  const raw = copy(plan(state)); const changed = raw.meals.find(meal => meal.id === 'dinner'); changed.title = "Second plan-title edit"; changed.planRevisionHistory = [{ at: NOW, previous: { title: "Fabricated history" } }]; changed.actualEntries = []; changed.actualTime = null; changed.sourceText = "Fabricated intake source text"; changed.state = 'reserved';
   state = apply(state, 'save_meal_plan_draft', { plan: raw });
   assert.equal(dinner(state).planRevisionHistory.length, 2); assertActualUnchanged(state, before);
   const view = materializeDietPlanForEdit(state, 'day');
   assert.deepEqual(view.meals.find(meal => meal.id === 'dinner').planRevisionHistory, dinner(state).planRevisionHistory);
   state = apply(state, 'commit_meal_plan', { planId: 'day', confirmed: true });
-  assert.equal(dinner(state).planRevisionHistory.length, 2); assert.equal(dinner(state).planRevisionHistory[1].previous.title, '晚饭');
+  assert.equal(dinner(state).planRevisionHistory.length, 2); assert.equal(dinner(state).planRevisionHistory[1].previous.title, "Dinner");
   assertActualUnchanged(state, before); assert.deepEqual(state.items, before.items);
-  assert.equal(dinner(state).title, '第二次改计划标题');
+  assert.equal(dinner(state).title, "Second plan-title edit");
 });
 
 test('unknown actual nutrition and correction history are immutable during planned edits instead of being filled from a new plan', () => {
   const before = completed(ready()); const actual = dinner(before).actualEntries.find(entry => entry.itemId === 'bagel');
-  actual.nutritionSnapshot = null; actual.correctionHistory = [{ ...copy(actual), quantity: 2, sourceText: '原先多报过2个', correctionHistory: undefined }];
+  actual.nutritionSnapshot = null; actual.correctionHistory = [{ ...copy(actual), quantity: 2, sourceText: "Previously overreported by 2 items", correctionHistory: undefined }];
   const after = patch(before, 'apply');
   assertActualUnchanged(after, before);
   assert.equal(dinner(after).actualEntries.find(entry => entry.itemId === 'bagel').nutritionSnapshot, null);
@@ -182,13 +182,13 @@ test('legacy nested drafts remain the current edit base without losing other mea
   for (const action of ['patch_meal_plan', 'revise_unconsumed_meals']) {
     const state = completed(ready());
     plan(state).draft = { ...copy(plan(state)), patchDraft: true };
-    plan(state).draft.meals.find(meal => meal.id === 'lunch').title = '旧草稿中已改好的午餐';
+    plan(state).draft.meals.find(meal => meal.id === 'lunch').title = "Lunch already edited in the legacy draft";
     const before = copy(state);
-    const after = action === 'patch_meal_plan' ? patch(state, 'apply', { mealPatches: [{ ...replacement, title: '当前贝果晚餐' }] })
-      : apply(state, action, { planId: 'day', confirmed: true, meals: [{ ...changedMealInput(state), title: '当前贝果晚餐' }] });
-    assert.equal(plan(after).meals.find(meal => meal.id === 'lunch').title, '旧草稿中已改好的午餐');
+    const after = action === 'patch_meal_plan' ? patch(state, 'apply', { mealPatches: [{ ...replacement, title: "Current bagel dinner" }] })
+      : apply(state, action, { planId: 'day', confirmed: true, meals: [{ ...changedMealInput(state), title: "Current bagel dinner" }] });
+    assert.equal(plan(after).meals.find(meal => meal.id === 'lunch').title, "Lunch already edited in the legacy draft");
     assert.equal(dinner(after).plannedItems[0].itemId, 'bagel');
-    assert.equal(dinner(after).title, '当前贝果晚餐');
+    assert.equal(dinner(after).title, "Current bagel dinner");
     assertActualUnchanged(after, before);
     assert.deepEqual(after.items, before.items);
     assert.equal(plan(after).draft, undefined);
@@ -203,7 +203,7 @@ test('plan history limit rejects atomically and retained history cannot be erase
   assert.throws(() => patch(state, 'apply'), { code: 'MEAL_PLAN_HISTORY_LIMIT', status: 409 });
   assert.deepEqual(state, before);
   const raw = copy(plan(state)); raw.meals.find(meal => meal.id === 'dinner').planRevisionHistory = [];
-  raw.meals.find(meal => meal.id === 'dinner').title = '已达审计上限时保存的提案';
+  raw.meals.find(meal => meal.id === 'dinner').title = "Proposal saved at the audit limit";
   assert.throws(() => apply(state, 'save_meal_plan_draft', { plan: raw }), { code: 'MEAL_PLAN_HISTORY_LIMIT', status: 409 });
   assert.deepEqual(state, before);
   const forgedHistoryOnly = copy(plan(state)); forgedHistoryOnly.meals.find(meal => meal.id === 'dinner').planRevisionHistory = [];
@@ -227,7 +227,7 @@ test('legacy prepaid inventory remains frozen through a menu edit and supplement
   assert.deepEqual(replay.items, actualSaved.items);
   assert.deepEqual(plan(replay).accountedDebits, plan(actualSaved).accountedDebits);
   state = apply(replay, 'record_meal_intake', { planId: 'day', mealId: 'dinner', mode: 'correct', entries: [
-    { id: 'actual-bagel-one', itemId: 'bagel', quantity: 2, unit: '个', sourceText: '更正实际吃了两个贝果' },
+    { id: 'actual-bagel-one', itemId: 'bagel', quantity: 2, unit: '个', sourceText: "Correct actual intake to two bagels" },
   ] });
   assert.equal(quantity(state, 'bagel'), 3, 'correction deducts only one additional actual bagel');
   assert.equal(quantity(state, 'pasta'), 1000);

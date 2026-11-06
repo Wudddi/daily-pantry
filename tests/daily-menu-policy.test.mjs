@@ -6,7 +6,7 @@ import { dailyMenuSettlementCandidates } from '../lib/daily-menu-runner.mjs';
 import { aiFoodReadState } from '../lib/ai-food-read-state.mjs';
 const at='2026-10-26T20:00:00.000Z';
 const state=()=>({schemaVersion:1,revision:0,updatedAt:at,items:[],plans:[],preferences:[],events:[],operationIds:[]});
-const policy=(s,enabled,startsOn='2026-10-26')=>applyMutation(s,{action:'set_daily_menu_settlement_policy',operationId:'policy-'+s.revision,expectedRevision:s.revision,enabled,timeZone:'America/Toronto',startsOn,confirmed:true,sourceText:'用户明确开启个人提醒与日终菜单结算'},at);
+const policy=(s,enabled,startsOn='2026-10-26')=>applyMutation(s,{action:'set_daily_menu_settlement_policy',operationId:'policy-'+s.revision,expectedRevision:s.revision,enabled,timeZone:'America/Toronto',startsOn,confirmed:true,sourceText:"The user explicitly enabled personal reminders and day-end menu settlement"},at);
 const plan=(date,extra={})=>({id:'day-'+date,date,format:'meals_v1',status:'draft',meals:[{id:'lunch'}],...extra});
 test('policy activation persists explicit authority without modifying food, menu, actual or personal checks',()=>{
   const before=state();before.plans=[plan('2026-10-26',{personalFoodChecks:{version:1,checks:[]},actualMarker:'unchanged'})];
@@ -49,7 +49,7 @@ test('closed actual days cannot fill the seven-candidate batch and starve a late
 test('a legacy supplement-only record with a saved food draft is eligible through the same current-menu projection as settlement',()=>{
   const s=policy(state(),true);
   s.plans=[plan('2026-10-26',{status:'reserved',supplementOnly:true,meals:[],supplementDoses:[],
-    draft:{id:'day-2026-10-26',date:'2026-10-26',title:'已保存的早餐菜单',meals:[{id:'breakfast',slot:'breakfast',title:'早餐',plannedItems:[{id:'existing-food',itemId:'food',quantity:100,unit:'g'}]}],supplementDoses:[]},
+    draft:{id:'day-2026-10-26',date:'2026-10-26',title:"Saved breakfast menu",meals:[{id:'breakfast',slot:'breakfast',title:"Breakfast",plannedItems:[{id:'existing-food',itemId:'food',quantity:100,unit:'g'}]}],supplementDoses:[]},
     personalFoodChecks:{version:1,checks:[{mealId:'breakfast',lineId:'existing-food',checked:false,updatedAt:at}],updatedAt:at}}),
     plan('2026-10-27',{supplementOnly:true,meals:[],supplementDoses:[],draft:{meals:[]}})];
   const before=structuredClone(s);
@@ -61,6 +61,6 @@ test('a legacy supplement-only record with a saved food draft is eligible throug
   assert.equal(dailyMenuSettlementCandidates(s,'2026-10-27T04:00:00Z').total,0,'genuine supplement-only days still do not consume food');
 });
 test('AI read state omits only private personal reminders while preserving actual evidence and source state',()=>{
-  const s=state();s.plans=[plan('2026-10-26',{personalFoodChecks:{checks:[{checked:false}]},draft:{personalFoodChecks:{checks:[{checked:true}]},title:'菜单'},actualEntries:[{id:'real',quantity:60}]})];
+  const s=state();s.plans=[plan('2026-10-26',{personalFoodChecks:{checks:[{checked:false}]},draft:{personalFoodChecks:{checks:[{checked:true}]},title:"Menu"},actualEntries:[{id:'real',quantity:60}]})];
   const before=structuredClone(s),safe=aiFoodReadState(s);assert.ok(!JSON.stringify(safe).includes('personalFoodChecks'));assert.deepEqual(safe.plans[0].actualEntries,s.plans[0].actualEntries);assert.deepEqual(s,before);
 });
