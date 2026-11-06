@@ -1,6 +1,6 @@
 # Daily Pantry
 
-A personal food inventory and meal-planning app with a Model Context Protocol (MCP) interface. It helps an AI assistant plan meals from current inventory and saved preferences, while keeping menus, actual intake, supplements, and stock accounting separate. The interface, assistant tools and project documentation use English. Existing user-authored records keep their original language.
+A personal food inventory and meal-planning app with a Model Context Protocol (MCP) interface. It helps an AI assistant plan meals from current inventory and saved preferences, while keeping menus, actual intake, supplements, and stock accounting separate. The public GitHub edition defaults to English; the owner's private instance uses a Chinese interface. Both share the same application and accounting logic. Assistant tools and project documentation use English. Existing user-authored records keep their original language.
 
 This is a sanitized copy of an actively used personal project. **All bundled food and body-measurement seed data is fictional.** Production records, private logs, credentials, hosting identity and the original Git history are excluded.
 
@@ -17,6 +17,7 @@ This is a sanitized copy of an actively used personal project. **All bundled foo
 - Per-item food shortage handling, correction history and preserved unknown values.
 - Bounded MCP reads and targeted edits that retain complete current preferences.
 - Weight trends and training records, with missing dates left unfilled.
+- Localized interface text and unit/storage labels, with English defaults for public exports and Chinese for the owner's private instance.
 
 Saving, adopting or editing a menu does **not** consume inventory. Personal food checkmarks are reminders. Explicit actual-intake reports and an optional end-of-day policy have separate accounting semantics. Meal completion does not imply supplement use.
 
@@ -68,9 +69,9 @@ Nutrition values retain their label, recipe or estimate provenance. Unknown valu
 
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md) and the repository commit history. Each release runs regression tests, TypeScript checks, an English UI/tool-copy check and a production build. [AGENTS.md](AGENTS.md) defines the standing release process: update the private app and sync the reviewed public source during the same task. No artificial activity commits are generated.
 
-The repeatable export command is `npm run export:public -- --out <absolute-public-checkout>`. It exports allowed code/docs and explicitly synthetic data, removes private hosting identity and checks for credentials or private identifiers. Authenticated upload uses the connected GitHub tools, preserving the existing branch parent and checking for concurrent changes. This process syncs software changes, never personal stock edits or health records. No GitHub access token is stored in source.
+The repeatable export command is `npm run export:public -- --out <absolute-public-checkout>`. It exports allowed code/docs and explicitly synthetic data, removes private hosting identity, forces the public English default, and checks for credentials or private identifiers. It preserves the private Chinese setting. Authenticated upload uses the connected GitHub tools, preserving the existing branch parent and checking for concurrent changes. This process syncs software changes, never personal stock edits or health records. No GitHub access token is stored in source.
 
-Legacy Chinese unit/storage keys remain in the data protocol for backward compatibility. English labels are rendered at the presentation boundary; changing the app language never rewrites historical intake or inventory facts. Compatibility tests also retain representative original-language input.
+`lib/ui-language-config.json` selects the interface language (`en` or `zh-CN`), and `lib/ui-zh-CN.json` maps English source text to Chinese. Public exports always select `en`. Legacy Chinese unit/storage keys remain in the data protocol for backward compatibility; their display follows the selected interface. Changing language never rewrites historical intake or inventory facts. Compatibility tests retain representative original-language input. The shared regression runner pins English, and dedicated locale tests verify Chinese and English independently.
 
 ## Development provenance
 

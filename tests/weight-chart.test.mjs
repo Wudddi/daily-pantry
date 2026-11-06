@@ -7,7 +7,8 @@ import ts from 'typescript';
 
 let compiled = ts.transpileModule(await readFile(new URL('../app/weight-chart.tsx', import.meta.url), 'utf8'), { fileName: 'weight-chart.tsx', compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 compiled = compiled.replace(/import\s+["']\.\/weight-chart\.css["'];?/g, '');
-compiled = compiled.replace(/(?<=^import[^\n]*)from\s+(["'])([^"']+)\1/gm, (_match, _quote, specifier) => 'from ' + JSON.stringify(import.meta.resolve(specifier)));
+compiled = compiled.replace(/(?<=^import[^\n]*)from\s+(["'])([^"']+)\1/gm, (_match, _quote, specifier) => 'from ' + JSON.stringify(
+  specifier.startsWith('@/lib/') ? new URL('../lib/' + specifier.slice('@/lib/'.length), import.meta.url).href : import.meta.resolve(specifier)));
 const { default: WeightChart, buildWeightChartModel, nearestWeightPoint, clientToWeightChartPoint, weightChartKeyboardIndex, weightTooltipPosition, createWeightChartInteraction } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
 
 function record(id, date, weightKg, extra = {}) { return { id, date, weightKg, archived: false, condition: '', notes: '', sourceText: '', source: 'manual', createdAt: date, updatedAt: date, ...extra }; }

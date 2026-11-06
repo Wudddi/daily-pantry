@@ -37,3 +37,23 @@ test('public export rejects seeds lacking synthetic provenance',t=>{
  const f=fixture(t);f.write('lib/seed-inventory.json','{"items":[{"name":"Unverified data"}]}');
  const result=f.run();assert.notEqual(result.status,0);assert.match(result.stderr,/synthetic-data notice/);
 });
+
+test('public export forces English defaults while preserving the private Chinese configuration and translation dictionary',t=>{
+ const f=fixture(t);
+ const privateConfig={language:'zh-CN'};
+ f.write('lib/ui-language-config.json',JSON.stringify(privateConfig));
+ f.write('lib/ui-zh-CN.json',JSON.stringify({'Daily Pantry':'每日库存'}));
+ const result=f.run();assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(fs.readFileSync(path.join(f.output,'lib/ui-language-config.json'),'utf8')),{language:'en'});
+ assert.deepEqual(JSON.parse(fs.readFileSync(path.join(f.source,'lib/ui-language-config.json'),'utf8')),privateConfig);
+ assert.deepEqual(JSON.parse(fs.readFileSync(path.join(f.output,'lib/ui-zh-CN.json'),'utf8')),{'Daily Pantry':'每日库存'});
+ assert.equal(fs.existsSync(path.join(f.output,'work/private-record.json')),false);
+ assert.equal(fs.existsSync(path.join(f.output,'.env.local')),false);
+ assert.ok(fs.existsSync(path.join(f.output,'.git/HEAD')));
+});
+
+test('public export rejects unsupported private language configuration before copying source',t=>{
+ const f=fixture(t);f.write('lib/ui-language-config.json',JSON.stringify({language:'unsupported'}));
+ const result=f.run();assert.notEqual(result.status,0);assert.match(result.stderr,/Invalid UI language configuration/);
+ assert.equal(fs.existsSync(path.join(f.output,'app/page.tsx')),false);
+});

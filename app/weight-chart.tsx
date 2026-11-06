@@ -1,4 +1,5 @@
 "use client";
+import { uiText, uiLocale, getUiLanguage } from '@/lib/ui-language.mjs';
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { BodyMeasurement } from '@/lib/health-types';
@@ -7,7 +8,7 @@ import './weight-chart.css';
 export type WeightChartProps = { measurements: BodyMeasurement[]; range: '30' | '90' | 'all' };
 export type WeightChartPoint = { record: BodyMeasurement; day: number; x: number; y: number };
 const DAY = 86_400_000;
-const formatted = (value: number, digits = 6) => new Intl.NumberFormat('en-CA', { maximumFractionDigits: digits }).format(value);
+const formatted = (value: number, digits = 6) => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: digits }).format(value);
 function dayOf(date: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const timestamp = Date.parse(date + 'T00:00:00Z');
@@ -167,20 +168,20 @@ export default function WeightChart({ measurements, range }: WeightChartProps) {
     setSelectedId(model.points[next].record.id);
   }
   const tooltip = weightTooltipPosition(selected ?? { x: 0, y: 0 }, model.width, model.height, model.bottom);
-  const selectedText = selected ? selected.record.date + ", " + formatted(selected.record.weightKg!) + " kg" + (selected.record.condition ? ", " + selected.record.condition : '') : '';
-  return <div className="weight-chart" ref={container} tabIndex={model.points.length ? 0 : undefined} role="group" aria-label="Weight trend. Use left and right arrow keys to review measurements; Escape closes details." aria-describedby={helpId + ' ' + statusId} onKeyDown={keyboard} onBlur={() => interaction.current?.cancel()}>
+  const selectedText = selected ? selected.record.date + ", " + formatted(selected.record.weightKg!) + uiText(" kg") + (selected.record.condition ? ", " + selected.record.condition : '') : '';
+  return <div className="weight-chart" ref={container} tabIndex={model.points.length ? 0 : undefined} role="group" aria-label={uiText("Weight trend. Use left and right arrow keys to review measurements; Escape closes details.")} aria-describedby={helpId + ' ' + statusId} onKeyDown={keyboard} onBlur={() => interaction.current?.cancel()}>
     {model.points.length ? <>
-      <svg ref={svg} width={model.width} height={model.height} viewBox={'0 0 ' + model.width + ' ' + model.height} role="img" aria-label="Weight measurements on actual dates. Gaps over seven days are not connected." onPointerEnter={event => interaction.current?.move(event)} onPointerDown={event => interaction.current?.down(event)} onPointerMove={event => interaction.current?.move(event)} onPointerUp={event => interaction.current?.up(event)} onPointerCancel={() => interaction.current?.cancel()} onPointerLeave={() => interaction.current?.leave()} onContextMenu={event => { if (interaction.current?.isActive()) event.preventDefault(); }}>
+      <svg ref={svg} width={model.width} height={model.height} viewBox={'0 0 ' + model.width + ' ' + model.height} role="img" aria-label={uiText("Weight measurements on actual dates. Gaps over seven days are not connected.")} onPointerEnter={event => interaction.current?.move(event)} onPointerDown={event => interaction.current?.down(event)} onPointerMove={event => interaction.current?.move(event)} onPointerUp={event => interaction.current?.up(event)} onPointerCancel={() => interaction.current?.cancel()} onPointerLeave={() => interaction.current?.leave()} onContextMenu={event => { if (interaction.current?.isActive()) event.preventDefault(); }}>
         <text x={model.left} y={14} className="weight-chart-axis">kg</text>
         {model.ticks.map(value => <g key={value}><line x1={model.left} x2={model.width - model.right} y1={model.weightY(value)} y2={model.weightY(value)} className="weight-chart-grid"/><text x={model.left - 9} y={model.weightY(value) + 5} textAnchor="end" className="weight-chart-axis">{formatted(value, 1)}</text></g>)}
         {model.dateTicks.map((day, index) => <text key={day} x={model.dateX(day)} y={model.height - 12} textAnchor={model.dateTicks.length === 1 ? 'middle' : index === 0 ? 'start' : index === model.dateTicks.length - 1 ? 'end' : 'middle'} className="weight-chart-axis">{new Date(day * DAY).toISOString().slice(0, 10)}</text>)}
         {model.segments.map((segment, index) => <polyline key={index} points={segment.map(point => point.x + ',' + point.y).join(' ')} fill="none" className="weight-chart-line"/>)}
-        {model.points.map(point => <circle key={point.record.id} cx={point.x} cy={point.y} r={model.points.length > 160 ? 2 : 3.5} className="weight-chart-point"><title>{point.record.date + ' · ' + formatted(point.record.weightKg!) + ' kg' + (point.record.condition ? ' · ' + point.record.condition : '')}</title></circle>)}
-        {selected && <g className="weight-chart-selection" aria-hidden="true"><line x1={selected.x} x2={selected.x} y1={model.top} y2={model.height - model.bottom} className="weight-chart-guide"/><circle cx={selected.x} cy={selected.y} r={10} className="weight-chart-halo"/><circle cx={selected.x} cy={selected.y} r={5.5} className="weight-chart-active"/><g transform={'translate(' + tooltip.x + ' ' + tooltip.y + ')'}><rect width={tooltip.width} height={tooltip.height} rx={9}/><text x={12} y={23} className="weight-chart-tooltip-date">{selected.record.date}</text><text x={12} y={46} className="weight-chart-tooltip-value">{formatted(selected.record.weightKg!)} kg</text></g></g>}
+        {model.points.map(point => <circle key={point.record.id} cx={point.x} cy={point.y} r={model.points.length > 160 ? 2 : 3.5} className="weight-chart-point"><title>{point.record.date + " · " + formatted(point.record.weightKg!) + uiText(" kg") + (point.record.condition ? " · " + point.record.condition : '')}</title></circle>)}
+        {selected && <g className="weight-chart-selection" aria-hidden="true"><line x1={selected.x} x2={selected.x} y1={model.top} y2={model.height - model.bottom} className="weight-chart-guide"/><circle cx={selected.x} cy={selected.y} r={10} className="weight-chart-halo"/><circle cx={selected.x} cy={selected.y} r={5.5} className="weight-chart-active"/><g transform={'translate(' + tooltip.x + ' ' + tooltip.y + ')'}><rect width={tooltip.width} height={tooltip.height} rx={9}/><text x={12} y={23} className="weight-chart-tooltip-date">{selected.record.date}</text><text x={12} y={46} className="weight-chart-tooltip-value">{formatted(selected.record.weightKg!)}{uiText(" kg")}</text></g></g>}
       </svg>
-      <div className="weight-chart-caption"><span><i/>Actual measurements</span><span>{model.points.length} records · {model.points[0].record.date} to {model.points.at(-1)!.record.date}</span></div>
-      <p className="weight-chart-help" id={helpId}>Hover or press and hold for values; drag after holding. Use ← → on the keyboard to switch records.</p>
-    </> : <div className="weight-chart-empty"><h3>No weight records in this range</h3><p id={helpId}>Select All to view history. Missing dates are not filled with zero.</p></div>}
+      <div className="weight-chart-caption"><span><i/>{uiText("Actual measurements")}</span><span>{model.points.length}{uiText(" records · ")}{model.points[0].record.date}{uiText(" to ")}{model.points.at(-1)!.record.date}</span></div>
+      <p className="weight-chart-help" id={helpId}>{uiText("Hover or press and hold for values; drag after holding. Use ← → on the keyboard to switch records.")}</p>
+    </> : <div className="weight-chart-empty"><h3>{uiText("No weight records in this range")}</h3><p id={helpId}>{uiText("Select All to view history. Missing dates are not filled with zero.")}</p></div>}
     <span className="weight-chart-status" id={statusId} role="status" aria-live="polite" aria-atomic="true">{selectedText}</span>
   </div>;
 }

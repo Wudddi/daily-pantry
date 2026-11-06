@@ -14,18 +14,30 @@ const files = [...new Set(selected)].filter(name => allowed.test(name) || rootFi
 const hosting = JSON.parse(fs.readFileSync(path.join(root,'.openai/hosting.json'),'utf8'));
 const privateIds = [hosting.project_id, process.env.USERPROFILE, process.env.HOME].filter(value => typeof value === 'string' && value.length > 6);
 const contentByPath = new Map();
+const languageConfigPath = 'lib/ui-language-config.json';
+const languageConfigFile = path.join(root, languageConfigPath);
+if (fs.existsSync(languageConfigFile)) {
+  const config = JSON.parse(fs.readFileSync(languageConfigFile, 'utf8'));
+  if (!config || typeof config !== 'object' || Array.isArray(config)
+    || Object.keys(config).some(key => key !== 'language') || !['en', 'zh-CN'].includes(config.language)) {
+    throw new Error('Invalid UI language configuration.');
+  }
+}
 for (const name of files) {
   if (/^(?:work|outputs|\.git|node_modules|dist|\.wrangler|\.sites-runtime)\//.test(name) || /(?:^|\/)(?:\.env[^/]*|.*\.(?:pem|pfx|key))$/.test(name)) throw new Error('Disallowed export path: ' + name);
   const absolute = path.resolve(root, name);
   if (!absolute.startsWith(root + path.sep) || fs.lstatSync(absolute).isSymbolicLink()) throw new Error('Unexpected source path: ' + name);
   let content = fs.readFileSync(absolute);
   if (name === '.openai/hosting.json') content = Buffer.from(JSON.stringify({ d1:null, r2:'BUCKET', capabilities:['mcp'] },null,2) + '\n');
+  if (name === languageConfigPath) content = Buffer.from(JSON.stringify({ language:'en' },null,2) + '\n');
   const text = content.toString('utf8');
   if (privateIds.some(value => text.includes(value) || text.includes(value.replaceAll('\\','/'))) || /(?:toastyacorn\d+|zhiyuan\d+)\.chatgpt\.site|(?:2332899892|zhiyuan5250)@(?:qq|gmail)\.com|C:[\\/]Users[\\/]\d{5}/i.test(text) || /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:gh[pousr]_[A-Za-z0-9]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{32,})/.test(text)) throw new Error('Private identifier or credential detected in ' + name);
   if (/^lib\/seed-.*\.json$/.test(name) && !/fictional|synthetic/i.test(text)) throw new Error('Seed file lacks an explicit synthetic-data notice: ' + name);
   if (!content.includes(0) && Buffer.from(text, "utf8").equals(content)) content = Buffer.from(text.replace(/\r\n/g, "\n"), "utf8");
   contentByPath.set(name, content);
 }
+// The public edition always starts in English, independently of the private build.
+contentByPath.set(languageConfigPath, Buffer.from(JSON.stringify({ language:'en' },null,2) + '\n'));
 fs.mkdirSync(output, { recursive:true });
 // Remove stale managed source files only inside the explicitly selected public checkout; retain its .git/history.
 let previous = [];

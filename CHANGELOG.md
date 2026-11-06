@@ -8,7 +8,8 @@ This log records application changes. Private inventory, health records and audi
 - Added transfers of a fraction of a recipe's remaining ingredients between meals, preserving daily totals and dish grouping.
 - Added a searchable inventory picker to each meal, with quantity entry and nutrition preview.
 - Preserved saved intake drafts when adding food; planning actions remain stock-neutral.
-- Converted application copy, project documentation and demo materials to English. Existing stored units and original user records remain backward compatible.
+- Added English source copy, project documentation and demo materials, plus a Chinese UI for the owner's private instance. Public exports default to English; both interfaces use the same calculations and accounting. Existing stored units and original user records remain backward compatible.
+- Localized displayed units and storage labels without changing saved identifiers. Public export enforces its English default while preserving the private Chinese configuration.
 - Added a repeatable checked public-source export, an English copy check, GitHub CI and a standing release process that preserves public commit history.
 
 ## 2026-11-02

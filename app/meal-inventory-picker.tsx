@@ -1,4 +1,5 @@
 "use client";
+import { uiText, uiLocale, getUiLanguage } from '@/lib/ui-language.mjs';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { unitLabel, storageLabel } from '@/lib/english-display.mjs';
 import { Plus, Search, X } from 'lucide-react';
@@ -11,9 +12,9 @@ import './meal-inventory-picker.css';
 
 export type MealInventoryPickerProps = { plan: DietPlan; items: FoodItem[]; revision: number; mealId: string; busy: boolean;
   mutate: (action: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; onClose: () => void };
-const slots: Record<string, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack", other: "Other" };
+const slots: Record<string, string> = { breakfast: uiText("Breakfast"), lunch: uiText("Lunch"), dinner: uiText("Dinner"), snack: uiText("Snack"), other: uiText("Other") };
 const labelUnit = (unit: string) => unitLabel(unit);
-const n = (value: number) => new Intl.NumberFormat('en-CA', { maximumFractionDigits: 2 }).format(value);
+const n = (value: number) => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 }).format(value);
 export default function MealInventoryPicker({ plan, items, revision, mealId, busy, mutate, onClose }: MealInventoryPickerProps) {
   const [query, setQuery] = useState(''), [selectedId, setSelectedId] = useState(''), [quantity, setQuantity] = useState(''), [unit, setUnit] = useState('');
   const [writing, setWriting] = useState(false), [error, setError] = useState('');
@@ -52,25 +53,25 @@ export default function MealInventoryPicker({ plan, items, revision, mealId, bus
         requests.current.set(identity, payload);
       }
       lock.current = true; setWriting(true); setError('');
-      const success = await mutate('add_food_to_meal', payload, "Added to this meal; inventory unchanged");
-      if (success) onClose(); else setError("Saving is unconfirmed. Refresh to verify; retrying uses the same operation ID.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Review the food and amount."); }
+      const success = await mutate('add_food_to_meal', payload, uiText("Added to this meal; inventory unchanged"));
+      if (success) onClose(); else setError(uiText("Saving is unconfirmed. Refresh to verify; retrying uses the same operation ID."));
+    } catch (cause) { setError(cause instanceof Error ? uiText(cause.message) : uiText("Review the food and amount.")); }
     finally { lock.current = false; setWriting(false); }
   }
   return <div className="meal-stock-overlay" onPointerDown={event => { if (event.target === event.currentTarget && !writing) onClose(); }}>
     <div className="meal-stock-dialog" role="dialog" aria-modal="true" aria-labelledby={heading} ref={dialog} tabIndex={-1}>
-      <header><div><span>{meal ? slots[meal.slot] ?? meal.title : "This meal"}</span><h2 id={heading}>Add from inventory</h2><p>Choose a food and amount for the current menu.</p></div><button type="button" aria-label="Close inventory picker" disabled={writing} onClick={onClose}><X size={20}/></button></header>
-      <label className="meal-stock-search"><Search size={17}/><input ref={search} type="search" aria-label="Search inventory food" placeholder="Search name or brand" value={query} onChange={event => setQuery(event.target.value)}/></label>
-      <div className="meal-stock-options" role="group" aria-label="Available inventory food">{choices.map(item => <button type="button" key={item.id} aria-pressed={selectedId === item.id} disabled={writing} onClick={() => { setSelectedId(item.id); setUnit(mealAdditionUnits(item).includes('g') ? 'g' : item.unit); setError(''); }}>
-        <span><strong>{item.name}</strong><small>{[item.brand, item.location ? storageLabel(item.location) : ''].filter(Boolean).join(' · ')}</small></span><span>{item.quantity === null ? "Available · balance unrecorded" : inventoryDisplayAmount(item).text}</span>
-      </button>)}{!choices.length && <p>No matching available food. Try another name.</p>}</div>
-      {selected && <section className="meal-stock-portion" aria-label="Amount to add"><strong>{selected.name}</strong><label>Amount for this meal<div><input aria-label="Food amount to add" type="number" min="0" step="any" inputMode="decimal" value={quantity} onChange={event => setQuantity(event.target.value)}/>{units.length > 1 ? <select aria-label="Food unit to add" value={unit} onChange={event => setUnit(event.target.value)}>{units.map(value => <option key={value} value={value}>{labelUnit(value)}</option>)}</select> : <span>{labelUnit(unit)}</span>}</div></label>
-        {!validItem && <p role="alert">This food is no longer available. Choose another.</p>}
-        {nativeQuantity !== null && <p className="meal-stock-nutrition">{nutrition.map(total => <span key={total.key}>{{ kcal: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat" }[total.key]} {total.partial || total.value === null ? "Unknown" : (total.estimated ? '≈' : '') + n(total.value)}{!total.partial && total.value !== null ? total.key === 'kcal' ? ' kcal' : 'g' : ''}</span>)}</p>}
-        {meal?.state === 'completed' && <p>This meal has reported intake. Adding food updates the plan comparison only; actual intake still follows your report.</p>}
+      <header><div><span>{meal ? slots[meal.slot] ?? meal.title : uiText("This meal")}</span><h2 id={heading}>{uiText("Add from inventory")}</h2><p>{uiText("Choose a food and amount for the current menu.")}</p></div><button type="button" aria-label={uiText("Close inventory picker")} disabled={writing} onClick={onClose}><X size={20}/></button></header>
+      <label className="meal-stock-search"><Search size={17}/><input ref={search} type="search" aria-label={uiText("Search inventory food")} placeholder={uiText("Search name or brand")} value={query} onChange={event => setQuery(event.target.value)}/></label>
+      <div className="meal-stock-options" role="group" aria-label={uiText("Available inventory food")}>{choices.map(item => <button type="button" key={item.id} aria-pressed={selectedId === item.id} disabled={writing} onClick={() => { setSelectedId(item.id); setUnit(mealAdditionUnits(item).includes('g') ? 'g' : item.unit); setError(''); }}>
+        <span><strong>{item.name}</strong><small>{[item.brand, item.location ? storageLabel(item.location) : ''].filter(Boolean).join(" · ")}</small></span><span>{item.quantity === null ? uiText("Available · balance unrecorded") : inventoryDisplayAmount(item).text}</span>
+      </button>)}{!choices.length && <p>{uiText("No matching available food. Try another name.")}</p>}</div>
+      {selected && <section className="meal-stock-portion" aria-label={uiText("Amount to add")}><strong>{selected.name}</strong><label>{uiText("Amount for this meal")}<div><input aria-label={uiText("Food amount to add")} type="number" min="0" step="any" inputMode="decimal" value={quantity} onChange={event => setQuantity(event.target.value)}/>{units.length > 1 ? <select aria-label={uiText("Food unit to add")} value={unit} onChange={event => setUnit(event.target.value)}>{units.map(value => <option key={value} value={value}>{labelUnit(value)}</option>)}</select> : <span>{labelUnit(unit)}</span>}</div></label>
+        {!validItem && <p role="alert">{uiText("This food is no longer available. Choose another.")}</p>}
+        {nativeQuantity !== null && <p className="meal-stock-nutrition">{nutrition.map(total => <span key={total.key}>{{ kcal: uiText("Calories"), protein: uiText("Protein"), carbs: uiText("Carbs"), fat: uiText("Fat") }[total.key]} {total.partial || total.value === null ? uiText("Unknown") : (total.estimated ? '≈' : '') + n(total.value)}{!total.partial && total.value !== null ? total.key === 'kcal' ? uiText(" kcal") : 'g' : ''}</span>)}</p>}
+        {meal?.state === 'completed' && <p>{uiText("This meal has reported intake. Adding food updates the plan comparison only; actual intake still follows your report.")}</p>}
       </section>}
-      {error && <p className="meal-stock-error" role="alert">{error}</p>}
-      <footer><span>Adds to the menu only. Record after eating.</span><button type="button" className="button primary" disabled={blocked || !validItem || nativeQuantity === null} onClick={() => void save()}><Plus size={16}/>{writing ? "Saving…" : "Add to meal"}</button></footer>
+      {error && <p className="meal-stock-error" role="alert">{uiText(error)}</p>}
+      <footer><span>{uiText("Adds to the menu only. Record after eating.")}</span><button type="button" className="button primary" disabled={blocked || !validItem || nativeQuantity === null} onClick={() => void save()}><Plus size={16}/>{writing ? uiText("Saving…") : uiText("Add to meal")}</button></footer>
     </div>
   </div>;
 }
