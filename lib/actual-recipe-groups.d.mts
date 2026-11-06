@@ -3,3 +3,5 @@ export type ActualRecipeGroup = { id: string; name: string; actualEntryIds: stri
 export type ActualRecipeGroupHistory = { at: string; previous: ActualRecipeGroup[] | null };
 export function normalizeActualRecipeGroups(value: unknown, actualEntries: readonly ActualEntry[]): ActualRecipeGroup[];
 export function applyActualRecipeGroups(meal: Meal, value: unknown, at: string): { meal: Meal; changed: boolean };
+export function hasActualRecipeGroupResources(payload: unknown): boolean;
+export function actualRecipeGroupResourcePatch(payload: unknown): { planId: string; mealId: string; groups: ActualRecipeGroup[] };

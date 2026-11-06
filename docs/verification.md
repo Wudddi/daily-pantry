@@ -2,7 +2,7 @@
 
 The application was checked on 2026-11-06 using Node.js 24.
 
-- All 970 regression tests passed, without failures or skips.
+- All 973 regression tests passed, without failures or skips.
 - TypeScript checks passed.
 - The test runner pins English for existing interface regressions. Fresh-process Chinese and English rendering tests verify navigation, recipe portion controls, the inventory picker, calendar dates, units and storage labels. The private default is Chinese; the public export explicitly sets English.
 - Initial Daily Meals rendering exercises the real parent state initializers and date validation in both languages, rather than supplying a preformatted calendar date. Toronto machine-date tests cover midnight, daylight-saving offsets, leap days and year boundaries. Health measurement/training drafts and both calendars retain canonical `YYYY-MM-DD` keys independently of display language.

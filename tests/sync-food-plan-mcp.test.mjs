@@ -123,3 +123,17 @@ test('Chat reads the latest saved web meal arrangement without adopting drafts o
   assert.deepEqual(draft.structuredContent.foodLayoutOverrides,saved.plans[0].foodLayoutOverrides);
   const retry=await call('set_food_layout',command);assert.equal(retry.isError,false);assert.deepEqual(store.current(),saved);
 });
+
+test('a cached patch client can organize actual recipes through reserved metadata resources and verify the same receipt',async()=>{
+  const initial=fixture();store.reset(initial);
+  const meal=initial.plans[0].meals[0],group={id:'demo-cached-half',name:'DEMO half recipe',portion:0.5,actualEntryIds:[meal.actualEntries[0].id]};
+  const command={planId:ID,operationId:'demo-cached-actual-group',expectedRevision:initial.revision,mode:'draft',mealPatches:[{id:meal.id,
+    recipeGroups:[{id:'actual-recipe:'+group.id,name:group.name,portion:group.portion,lineIds:group.actualEntryIds.map(id=>'actual-entry:'+id)}]}]};
+  const response=await call('patch_food_plan',command);assert.equal(response.isError,false);
+  assert.equal(response.structuredContent.inventoryEffect,'none');assert.deepEqual(response.structuredContent.actualRecipeGroups,[group]);
+  const saved=structuredClone(store.current());assert.deepEqual(saved.items,initial.items);
+  const after=saved.plans[0].meals[0];
+  for(const key of ['actualEntries','reportHistory','state','plannedItems','recipeGroups'])assert.deepEqual(after[key],meal[key],key);
+  assert.deepEqual(saved.plans[0].accountedDebits,initial.plans[0].accountedDebits);
+  assert.equal((await call('patch_food_plan',command)).isError,false);assert.deepEqual(store.current(),saved);
+});
