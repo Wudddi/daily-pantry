@@ -6,6 +6,7 @@ import type { PlanningPriorityMetadata } from './inventory-planning-priority.mjs
 import type { FoodPreferencesContext } from './food-preferences-context.mjs';
 import type { ItemAccountingContext } from './inventory-accounting-context.mjs';
 import type { DailyMenuSettlementSummary } from './daily-menu-settlement-context.mjs';
+import type { PersonalCheckContext } from './ai-food-read-state.mjs';
 
 export type DietEditState = {
   revision: number; preferences: readonly string[]; items: readonly FoodItem[]; plans?: readonly (DietPlan | Plan)[]; dietHistory?: readonly DietHistoryRecord[];
@@ -54,7 +55,7 @@ export type FoodPlanEditContext = FoodPreferencesContext & {
     protectionReasons: string[]; canApply: boolean; applyProtectionReasons: string[];
     accountingIssueCount: number; accountingIssues: { code: string; itemId: string | null }[];
     accountingIssuesTruncated: boolean };
-  meals: FoodPlanEditMeal[]; requestedMealIds: string[]; omittedMealIds: string[];
+  meals: FoodPlanEditMeal[]; requestedMealIds: string[]; omittedMealIds: string[]; personalCheckContext: PersonalCheckContext;
   otherMeals: { preserve: true; count: number; included: number; truncated: boolean;
     meals: { id: string; slot: MealSlot; title: string; hasActualFacts: boolean; nutritionTotals: EditNutritionTotal[] }[] };
   supplements: { preserve: true; count: number; actualDoseCount: number; reportedDoseCount: number };

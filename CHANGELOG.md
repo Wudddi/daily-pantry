@@ -4,6 +4,8 @@ This log records application changes. Private inventory, health records and audi
 
 ## 2026-11-06
 
+- Exposed current personal food checkmarks as read-only advisory context in targeted Chat reads, with canonical row identities, saved timestamps and display-meal placement. Explicit requests to settle selected foods still use actual records and prior accounting credits; checkmarks alone never record intake or deduct stock, and unchecked food is not treated as uneaten.
+
 - Added whole-recipe half, whole and custom portions with an absolute ingredient basis.
 - Added transfers of a fraction of a recipe's remaining ingredients between meals, preserving daily totals and dish grouping.
 - Added a searchable inventory picker to each meal, with quantity entry and nutrition preview.

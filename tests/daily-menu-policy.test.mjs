@@ -60,7 +60,12 @@ test('a legacy supplement-only record with a saved food draft is eligible throug
   s.plans[0].draft.meals=[];
   assert.equal(dailyMenuSettlementCandidates(s,'2026-10-27T04:00:00Z').total,0,'genuine supplement-only days still do not consume food');
 });
-test('AI read state omits only private personal reminders while preserving actual evidence and source state',()=>{
+test('AI read state replaces raw personal reminders with advisory context while preserving actual evidence and source state',()=>{
   const s=state();s.plans=[plan('2026-10-26',{personalFoodChecks:{checks:[{checked:false}]},draft:{personalFoodChecks:{checks:[{checked:true}]},title:"Menu"},actualEntries:[{id:'real',quantity:60}]})];
-  const before=structuredClone(s),safe=aiFoodReadState(s);assert.ok(!JSON.stringify(safe).includes('personalFoodChecks'));assert.deepEqual(safe.plans[0].actualEntries,s.plans[0].actualEntries);assert.deepEqual(s,before);
+  const before=structuredClone(s),safe=aiFoodReadState(s);
+  assert.ok(!JSON.stringify(safe).includes('personalFoodChecks'),'raw reminder storage and draft copies stay excluded');
+  assert.equal(safe.plans[0].personalCheckContext.basis,'personal_reminder');
+  assert.equal(safe.plans[0].personalCheckContext.actualIntakeEvidence,false);
+  assert.equal(safe.plans[0].personalCheckContext.available,false,'malformed legacy reminders cannot manufacture checked or unchecked evidence');
+  assert.deepEqual(safe.plans[0].actualEntries,s.plans[0].actualEntries);assert.deepEqual(s,before);
 });

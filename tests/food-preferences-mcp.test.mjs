@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import { validateItem, applyMutation } from '../lib/inventory.mjs';
+import { fixture as layoutFixture, ID as layoutPlanId, recipeMoves } from './fixtures/food-layout.mjs';
 
 // Exercise the actual RPC dispatcher and real domain mutation. Only the
 // authenticated R2/health boundary is replaced; these tests never reach a site.
@@ -167,7 +168,117 @@ test('the scheduled MCP writer honors actor policy, dry-run and repeated daily p
   r=await rpc('tools/call',{name:'settle_due_daily_menus',arguments:{dryRun:false}});assert.equal(r.isError,false);assert.equal(store.current().items[0].quantity,140);
   const saved=store.current().plans.find(p=>p.id==='auto-day');assert.equal(saved.dailySettlement.basis,'auto_planned');assert.equal(saved.meals[0].actualEntries.length,0);assert.equal(saved.personalFoodChecks.checks[0].checked,false);
   await rpc('tools/call',{name:'settle_due_daily_menus',arguments:{dryRun:false}});assert.equal(store.current().items[0].quantity,140);
-  const details=await rpc('tools/call',{name:'read_diet_records',arguments:{recordId:'auto-day'}});assert.equal(details.isError,false);assert.ok(!JSON.stringify(details.structuredContent).includes('personalFoodChecks'));
+  const details=await rpc('tools/call',{name:'read_diet_records',arguments:{recordId:'auto-day'}});assert.equal(details.isError,false);
+  assert.ok(!JSON.stringify(details.structuredContent).includes('personalFoodChecks'));
+  const context=JSON.parse(details.structuredContent.text).personalCheckContext;
+  assert.equal(context.actualIntakeEvidence,false);assert.deepEqual(context.rows.map(row=>({lineId:row.lineId,checked:row.checked})),[{lineId:'food-line',checked:false}]);
+});
+
+let reminderSequence=0;
+function markedMealFixture() {
+  let state=mealFixture();
+  const mutate=(action,fields)=>{state=applyMutation(state,{action,operationId:'read-reminder-'+(++reminderSequence),expectedRevision:state.revision,...fields},NOW);};
+  mutate('save_meal_plan_draft',{plan:{id:'auto-day',date:'2026-10-25',title:'Advisory reminder read test',meals:[
+    {id:'lunch',slot:'lunch',title:'Lunch',plannedItems:[{id:'food-line',itemId:'food',quantity:60,unit:'g'}]},
+    {id:'dinner',slot:'dinner',title:'Dinner',plannedItems:[{id:'dinner-food',itemId:'food',quantity:40,unit:'g'}]},
+  ],supplementDoses:[]}});
+  mutate('set_food_personal_check',{planId:'auto-day',mealId:'lunch',lineIds:['food-line'],checked:true});
+  mutate('set_food_personal_check',{planId:'auto-day',mealId:'dinner',lineIds:['dinner-food'],checked:true});
+  mutate('set_food_personal_check',{planId:'auto-day',mealId:'dinner',lineIds:['dinner-food'],checked:false});
+  return state;
+}
+function advisoryContext(content) {
+  if(content.personalCheckContext) return content.personalCheckContext;
+  if(content.records) return content.records.find(record=>record.id==='auto-day')?.personalCheckContext;
+  assert.equal(content.nextOffset,null,'the synthetic record should fit in one lossless chunk');
+  return JSON.parse(content.text).personalCheckContext;
+}
+const advisoryReads=[
+  ['read_intake_draft',{planId:'auto-day'}],
+  ['read_food_plan_edit_context',{planId:'auto-day'}],
+  ['read_diet_records',{planId:'auto-day'}],
+  ['read_diet_records',{recordId:'auto-day'}],
+];
+
+test('targeted MCP day reads expose the latest checked and unchecked reminders as advisory context without writes',async()=>{
+  const initial=markedMealFixture();store.reset(initial);
+  for(const [name,args] of advisoryReads) {
+    const response=await rpc('tools/call',{name,arguments:args});assert.equal(response.isError,false,name);
+    const content=response.structuredContent,context=advisoryContext(content);assert(context,name+' must carry the advisory context');
+    assert.equal(content.revision,initial.revision);assert.equal(context.available,true);assert.equal(context.basis,'personal_reminder');assert.equal(context.actualIntakeEvidence,false);
+    assert.equal(context.totalRows,2);assert.equal(context.includedRows,2);assert.equal(context.truncated,false);
+    assert.deepEqual(context.rows.map(row=>({sourceMealId:row.sourceMealId,lineId:row.lineId,displayMealId:row.displayMealId,checked:row.checked})),[
+      {sourceMealId:'lunch',lineId:'food-line',displayMealId:'lunch',checked:true},
+      {sourceMealId:'dinner',lineId:'dinner-food',displayMealId:'dinner',checked:false},
+    ]);
+    assert(context.rows.every(row=>row.updatedAt===NOW));assert.match(context.instructions,/not.*actual|not.*intake|not.*eaten/i);
+    assert.ok(!JSON.stringify(content).includes('personalFoodChecks'),'raw storage is not a second contradictory context');
+  }
+  assert.deepEqual(store.current(),initial);assert.equal(store.mutations().length,0);
+  const updated=applyMutation(store.current(),{action:'set_food_personal_check',operationId:'latest-advisory-toggle',expectedRevision:store.current().revision,planId:'auto-day',mealId:'lunch',lineIds:['food-line'],checked:false},'2026-10-26T15:10:00.000Z');
+  store.reset(updated);
+  const latest=await rpc('tools/call',{name:'read_intake_draft',arguments:{planId:'auto-day'}});
+  assert.equal(latest.structuredContent.revision,updated.revision);assert.equal(latest.structuredContent.personalCheckContext.rows[0].checked,false);
+  assert.equal(latest.structuredContent.personalCheckContext.rows[0].updatedAt,'2026-10-26T15:10:00.000Z');assert.deepEqual(store.current(),updated);
+});
+
+test('partial actuals and menu settlement stay independent of advisory checks without duplicate rows, intake or stock deduction on reads',async()=>{
+  let state=markedMealFixture();
+  state=applyMutation(state,{action:'record_meal_intake',operationId:'advisory-partial-actual',expectedRevision:state.revision,planId:'auto-day',mealId:'lunch',entries:[{id:'stable-actual-food',itemId:'food',quantity:20,unit:'g',sourceText:'The user explicitly reported eating 20 g.'}],sourceText:'A partial actual report, independent of reminders.'},NOW);
+  state.dailyMenuSettlementPolicy={version:1,enabled:true,timeZone:'America/Toronto',startsOn:'2026-10-25',updatedAt:NOW,sourceText:'The owner enabled midnight menu settlement.'};
+  state=applyMutation(state,{action:'settle_daily_menu',operationId:'advisory-settlement',expectedRevision:state.revision,planId:'auto-day',effectiveDate:'2026-10-25',policyStartDate:'2026-10-25',confirmed:true},NOW);
+  const before=structuredClone(state);store.reset(state);
+  assert.equal(state.items[0].quantity,100,'only the single 100 g daily food total is settled');
+  for(let attempt=0;attempt<2;attempt++) for(const [name,args] of advisoryReads) {
+    const response=await rpc('tools/call',{name,arguments:args});assert.equal(response.isError,false,name);
+    const context=advisoryContext(response.structuredContent);assert.equal(context.actualIntakeEvidence,false);
+    assert.equal(context.rows.length,2);assert.equal(new Set(context.rows.map(row=>JSON.stringify([row.sourceMealId,row.lineId]))).size,2);
+    assert.deepEqual(context.rows.map(row=>row.checked),[true,false]);
+    if(name==='read_intake_draft') {
+      const lunch=response.structuredContent.meals.find(meal=>meal.id==='lunch');assert.equal(lunch.rows[0].reportedQuantity,20);
+      const dinner=response.structuredContent.meals.find(meal=>meal.id==='dinner');assert.equal(dinner.rows[0].reportedQuantity,0);
+    }
+  }
+  assert.deepEqual(store.current(),before);assert.equal(store.mutations().length,0);
+  const saved=store.current().plans.find(plan=>plan.id==='auto-day');
+  assert.equal(saved.meals.flatMap(meal=>meal.actualEntries).length,1);assert.equal(saved.meals[0].actualEntries[0].id,'stable-actual-food');assert.equal(saved.meals[0].actualEntries[0].quantity,20);
+  assert.equal(saved.accountedDebits.find(line=>line.itemId==='food').quantity,100);assert.equal(saved.dailySettlement.source,'automatic_menu');
+});
+
+test('MCP reads follow a moved checked recipe by display meal while retaining one canonical source per ingredient',async()=>{
+  let state=layoutFixture();
+  state=applyMutation(state,{action:'set_food_layout',operationId:'advisory-moved-recipe',expectedRevision:state.revision,planId:layoutPlanId,moves:recipeMoves('dinner')},NOW);
+  const before=structuredClone(state);store.reset(state);
+  for(const name of ['read_intake_draft','read_food_plan_edit_context']) {
+    const response=await rpc('tools/call',{name,arguments:{planId:layoutPlanId,mealIds:['dinner']}});assert.equal(response.isError,false,name);
+    const context=response.structuredContent.personalCheckContext;assert.equal(context.actualIntakeEvidence,false);
+    const moved=context.rows.filter(row=>row.sourceMealId==='breakfast');
+    assert.deepEqual(moved.map(row=>[row.lineId,row.checked,row.displayMealId]),[
+      ['square-oats',true,'dinner'],['square-milk',false,'dinner'],['square-egg',true,'dinner'],
+    ]);
+    assert.equal(context.rows.filter(row=>row.lineId==='rice-line').length,1);
+    assert.equal(new Set(context.rows.map(row=>JSON.stringify([row.sourceMealId,row.lineId]))).size,context.rows.length);
+  }
+  assert.deepEqual(store.current(),before);assert.equal(store.mutations().length,0);
+  assert.equal(store.current().plans[0].meals.find(meal=>meal.id==='breakfast').actualEntries.length,0);
+});
+
+test('a later explicit cumulative report settles only the missing amount after advisory reads and exact retries keep the same credit',async()=>{
+  store.reset(markedMealFixture());
+  const first={operationId:'advisory-first-part',expectedRevision:store.current().revision,planId:'auto-day',mealId:'lunch',entries:[{id:'first-20g',itemId:'food',quantity:20,unit:'g',sourceText:'The owner explicitly ate the first 20 g.'}],sourceText:'The first part of lunch was eaten.'};
+  const firstReceipt=await rpc('tools/call',{name:'record_meal_intake',arguments:first});assert.equal(firstReceipt.isError,false);assert.equal(store.current().items[0].quantity,180);
+  const afterFirst=structuredClone(store.current());
+  for(const [name,args] of advisoryReads) {const response=await rpc('tools/call',{name,arguments:args});assert.equal(response.isError,false,name);assert.equal(advisoryContext(response.structuredContent).rows[0].checked,true);}
+  assert.deepEqual(store.current(),afterFirst,'reading a checked row does not report the other 40 g as eaten');
+  const second={operationId:'advisory-later-part',expectedRevision:store.current().revision,planId:'auto-day',mealId:'lunch',mode:'correct',entries:[{id:'first-20g',itemId:'food',quantity:60,unit:'g',sourceText:'The owner explicitly ate the remaining 40 g later; cumulative intake is 60 g.'}],sourceText:'Correct the original partial record to its cumulative amount without a second serving.'};
+  const secondReceipt=await rpc('tools/call',{name:'record_meal_intake',arguments:second});assert.equal(secondReceipt.isError,false,JSON.stringify(secondReceipt.structuredContent));
+  assert.equal(store.current().items[0].quantity,140);const afterSecond=structuredClone(store.current());
+  const retry=await rpc('tools/call',{name:'record_meal_intake',arguments:second});assert.equal(retry.isError,false);assert.deepEqual(store.current(),afterSecond);
+  const saved=store.current().plans.find(plan=>plan.id==='auto-day');
+  const actual=saved.meals.find(meal=>meal.id==='lunch').actualEntries;
+  assert.deepEqual(actual.map(entry=>[entry.id,entry.quantity]),[['first-20g',60]]);assert.equal(actual[0].correctionHistory[0].quantity,20);
+  assert.equal(saved.accountedDebits.find(line=>line.itemId==='food').quantity,60);
+  assert.equal(saved.meals.find(meal=>meal.id==='dinner').actualEntries.length,0);assert.deepEqual(saved.personalFoodChecks,afterFirst.plans.find(plan=>plan.id==='auto-day').personalFoodChecks);
 });
 test('MCP stock calibration acknowledges the original consumed credit rather than subtracting it again',async()=>{
   let s=mealFixture(null);s=applyMutation(s,{action:'record_meal_intake',operationId:'ate-food',expectedRevision:s.revision,planId:'auto-day',mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:'用户明确按菜单吃完'},'2026-10-25T20:00:00Z');store.reset(s);

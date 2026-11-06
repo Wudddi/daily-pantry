@@ -17,6 +17,8 @@ Inventory and health use separate user-isolated R2 JSON objects. Commands valida
 
 Initial assistant reads provide complete current preferences and inventory in bounded pages. Small edits use meal-scoped contexts and stable ID patches. Large original labels and historical records are read by exact ID and offset. UI and tool receipts share nutrition aggregation.
 
+Targeted meal, intake-draft and record reads expose `personalCheckContext` as advisory selection. It keeps canonical source meal/line IDs separate from display placement and labels checkmarks as non-evidence. Chat combines the latest selection with the user's explicit report or settlement request and existing actual entries and credits; checkmarks alone never initiate settlement. Automatic settlement and familiar-meal reference selection remain independent of these reminders.
+
 The public source export excludes production identity and data. There is no SQL migration requirement; fictional demo seeds initialize only a new user's empty storage. Existing users retain their stored records. Hosting-specific authentication and unattended scheduling require their own trusted integration. History partitioning is planned, not yet implemented.
 
 ## Recipe portions and additions

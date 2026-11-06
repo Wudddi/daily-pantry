@@ -20,7 +20,7 @@ This is a sanitized copy of an actively used personal project. **All bundled foo
 - Weight trends and training records, with missing dates left unfilled.
 - Localized interface text and unit/storage labels, with English defaults for public exports and Chinese for the owner's private instance.
 
-Saving, adopting or editing a menu does **not** consume inventory. Personal food checkmarks are reminders. Explicit actual-intake reports and an optional end-of-day policy have separate accounting semantics. Meal completion does not imply supplement use.
+Saving, adopting or editing a menu does **not** consume inventory. Personal food checkmarks are reminders that Chat can read as advisory selection context. An explicit request to settle checked foods uses the latest selection together with existing actual records and credits, recording and deducting only the unaccounted difference. Checking alone records no intake or stock change; unchecked never means uneaten. Explicit actual-intake reports and an optional end-of-day policy have separate accounting semantics. Meal completion does not imply supplement use.
 
 ## Local development
 
