@@ -2,13 +2,14 @@
 
 The deployment-language update was checked on 2026-11-06 using Node.js 24.
 
-- All 888 regression tests passed, without failures or skips.
+- All 901 regression tests passed, without failures or skips.
 - TypeScript checks passed.
 - The test runner pins English for existing interface regressions. Fresh-process Chinese and English rendering tests verify navigation, recipe portion controls, the inventory picker, calendar dates, units and storage labels. The private default is Chinese; the public export explicitly sets English.
 - Initial Daily Meals rendering exercises the real parent state initializers and date validation in both languages, rather than supplying a preformatted calendar date. Toronto machine-date tests cover midnight, daylight-saving offsets, leap days and year boundaries. Health measurement/training drafts and both calendars retain canonical `YYYY-MM-DD` keys independently of display language.
 - Authored English interface and MCP copy passed the automated check; the Chinese localization dictionary and legacy data-protocol keys are documented exceptions.
 - Public export checks passed with synthetic demo seeds and no private hosting identity or runtime data.
 - Existing accounting, actual-intake, draft preservation, recipe portion and concurrency tests remain active.
+- Nutrition-basis tests reconcile planned food, signed actual-food differences and supplements, including actual-only extras, partial reports, explicit zero, cancellation, unknown nutrients/units and historical fallback. Chinese and English rendering checks keep the comparison read-only, retain uncertainty, and verify that personal checks cannot change actual intake, daily totals or stock. An entirely equal, complete food-only baseline needs no comparison panel.
 - Normal 17-food preparation details fit the existing transport budget. The 77-item inventory fixture fits the existing 96,000-character budget; full original text remains available through item detail reads.
 
 The language tests use synthetic in-memory menus and check that rendering preserves every inventory field, original source text and actual-intake record. No production food, stock or health record is inserted or changed by these tests. Browser checks, deployment and the external project submission are separate release steps; this document does not claim their completion.

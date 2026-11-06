@@ -12,6 +12,7 @@ This log records application changes. Private inventory, health records and audi
 - Localized displayed units and storage labels without changing saved identifiers. Public export enforces its English default while preserving the private Chinese configuration.
 - Added a repeatable checked public-source export, an English copy check, GitHub CI and a standing release process that preserves public commit history.
 - Kept canonical calendar keys independent of display language so Chinese meal and training views always receive valid YYYY-MM-DD dates.
+- Clarified that checklist calories describe planned food only, while daily nutrition uses reported intake, retained menu portions and counted supplements. Added a read-only comparison for actual-food adjustments, supplement calories and incomplete or historical evidence; personal checks and stock accounting are unchanged.
 
 ## 2026-11-02
 
