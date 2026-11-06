@@ -1,4 +1,5 @@
 "use client";
+import { canonicalLocalDate } from '@/lib/calendar-date.mjs';
 import { uiText, uiLocale, getUiLanguage } from '@/lib/ui-language.mjs';
 
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode, type TextareaHTMLAttributes } from "react";
@@ -17,10 +18,7 @@ const setKinds = { unknown: uiText("Unspecified"), warmup: uiText("Warm-up set")
 const loadBases = { unknown: uiText("Unspecified"), single_hand: uiText("Per hand"), total: uiText("Total load"), machine: uiText("Machine label"), bodyweight: uiText("Bodyweight") };
 const displayNumber = (value: number | null | undefined, digits = 2) => value == null ? "—" : new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: digits }).format(value);
 const nullableNumber = (value: string) => value.trim() === "" ? null : Number(value);
-function localToday() {
-  const parts = new Intl.DateTimeFormat(uiLocale(), { timeZone: "America/Toronto", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  return ["year", "month", "day"].map(key => parts.find(part => part.type === key)?.value).join("-");
-}
+function localToday() { return canonicalLocalDate(); }
 function signed(value: number | null | undefined) { return value == null ? "—" : (value > 0 ? "+" : "") + displayNumber(value); }
 function measurementDraft(): BodyMeasurement {
   const now = new Date().toISOString();

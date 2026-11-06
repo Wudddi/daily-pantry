@@ -1,4 +1,5 @@
 "use client";
+import { canonicalLocalDate } from '@/lib/calendar-date.mjs';
 import { uiText, uiLocale, getUiLanguage } from '@/lib/ui-language.mjs';
 
 import { useId, useMemo } from 'react';
@@ -25,10 +26,7 @@ export type DietCalendarProps = {
 type CalendarValue = DietCalendarDay & { duplicate: boolean };
 const WEEKDAYS = [uiText("Mon"), uiText("Tue"), uiText("Wed"), uiText("Thu"), uiText("Fri"), uiText("Sat"), uiText("Sun")];
 
-function torontoToday() {
-  const parts = new Intl.DateTimeFormat('en', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-  return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)!.value).join("-");
-}
+function torontoToday() { return canonicalLocalDate(); }
 
 function dateLabel(date: string) {
   return new Intl.DateTimeFormat(uiLocale(), { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'));

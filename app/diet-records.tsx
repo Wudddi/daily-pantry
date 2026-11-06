@@ -1,4 +1,5 @@
 "use client";
+import { canonicalLocalDate } from '@/lib/calendar-date.mjs';
 import { uiText, uiLocale, getUiLanguage } from '@/lib/ui-language.mjs';
 import { useMemo, useState } from 'react';
 import { unitLabel, storageLabel } from '@/lib/english-display.mjs';
@@ -32,7 +33,7 @@ type Props = { state: DietState | null; getLatest?: () => DietState | null; load
 const names = { breakfast: uiText("Breakfast"), lunch: uiText("Lunch"), dinner: uiText("Dinner"), snack: uiText("Snack"), other: uiText("Other") };
 const number = (n: number) => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 }).format(n);
 const dailyNumber = (n: number, key: string) => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: key === 'kcal' ? 0 : 1 }).format(n);
-function today() { return new Intl.DateTimeFormat(uiLocale(), { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+function today() { return canonicalLocalDate(); }
 function shift(date: string, days: number) { const value = new Date(date + 'T12:00:00Z'); value.setUTCDate(value.getUTCDate() + days); return value.toISOString().slice(0, 10); }
 function amount(value: number | null, unit: string) { return value === null ? uiText("Amount unreported") : number(value) + ' ' + unitLabel(unit, value); }
 function mealState(state: string) { return state === 'completed' ? uiText("Completed · reported intake") : state === 'in_progress' ? uiText("Partially reported") : state === 'cancelled' ? uiText("Cancelled") : uiText("Current menu"); }
