@@ -5,7 +5,7 @@ export type IntakeDraftInput = { id: string; baseFingerprint: string;
   consumed: { mealId: string; lineId: string; quantity: number | null; unit?: string; correctExistingActuals?: boolean }[];
   transfers: { id: string; fromMealId: string; lineId: string; toMealId: string; quantity: number; unit?: string }[];
   completedMealIds: string[]; updatedAt?: string };
-export type IntakeDraftRow = { lineId: string; itemId: string | null; name: string; unit: string; plannedQuantity: number | null;
+export type IntakeDraftRow = { lineId: string; sourceMealId?:string; itemId: string | null; name: string; unit: string; plannedQuantity: number | null;
   eatenQuantity: number | null; reportedQuantity: number | null; externalReportedQuantity: number | null;
   remainingQuantity: number | null; unknown: boolean; canEdit: boolean; issue: string };
 export type IntakeDraftMeal = { id: string; slot: MealSlot; title: string; state: string; completed: boolean; rows: IntakeDraftRow[] };

@@ -32,6 +32,8 @@ export type FoodPlanNutritionSummary = {
 export type FoodPlanEditMeal = {
   id: string; slot: MealSlot; title: string; state: string; hasActualFacts: boolean; canPatch: boolean;
   recipeGroups: { id: string; name: string; lineIds: string[]; portion: number; legacyBasis: boolean; editFingerprint?: string; canScale?: boolean; canMove?: boolean }[];
+  actualRecipeGroups?: import('./actual-recipe-groups.mjs').ActualRecipeGroup[];
+  actualRecipeGroupHistoryCount: number;
   canRemove: boolean; actualFactsImmutable: true; protectionReasons: string[];
   actualEntries: { id: string; itemId: string | null; name: string; quantity: number | null; unit: string;
     nutrition: EditNutrition; gramsPerUnit: number | null; sourceTextAvailable: boolean; nutritionCorrectionCount: number }[];
@@ -45,6 +47,7 @@ export type FoodPlanEditContext = FoodPreferencesContext & {
   revision: number; dailyMenuSettlementPolicy?: DailyMenuSettlementPolicy;
   contextCharBudget: number; preferencesJsonCharacters: number; preferencesContextJsonCharacters: number; charBudget: number;
   plan: { id: string; date: string; title: string; status: string; hasDraft: boolean; editBase: 'draft' | 'active';
+    foodLayoutOverrides: import('./food-layout.mjs').FoodLayoutMove[]; foodLayoutFingerprint: string;
     hasIntakeDraft: boolean; intakeDraftVersion: string | null;
     accountingWarnings?: AccountingWarning[]; accountingWarningCount?: number; accountingWarningsTruncated?: boolean; supplementOnly: boolean; supplementAccounting: string | null; inventoryAccounting: string; canPatch: boolean;
     dailySettlement?: DailyMenuSettlementSummary;

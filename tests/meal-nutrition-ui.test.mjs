@@ -146,7 +146,8 @@ test('named recipes are closed disclosures in detailed nutrition while drinks re
 test('actual recipe quantities keep their own snapshots and an ambiguous matching food stays outside', () => {
   const source = meal({ state: 'completed', plannedItems: [food('yogurt-cake', 60, { itemId: 'yogurt' }), food('yogurt-drink', 100, { itemId: 'yogurt' }), food('egg', 50)],
     recipeGroups: [{ id: 'basque', name: '高蛋白巴斯克', lineIds: ['yogurt-cake', 'egg'] }],
-    actualEntries: [food('actual-yogurt', 80, { itemId: 'yogurt' }), food('actual-egg', 44, { itemId: 'egg' })] });
+    actualEntries: [food('actual-yogurt', 80, { itemId: 'yogurt' }), food('actual-egg', 44, { itemId: 'egg' })],
+    actualRecipeGroups: [{id:'actual-basque',name:'高蛋白巴斯克',actualEntryIds:['actual-egg'],portion:0.5}] });
   const view = mealNutritionView(source);
   const html = renderToStaticMarkup(React.createElement(FoodNutritionList, { rows: view.actualRows, meal: source }));
   const recipe = html.match(/<li class="meal-food-recipe">([\s\S]*?)<\/details><\/li>/)?.[1] ?? '';

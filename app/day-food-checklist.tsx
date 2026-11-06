@@ -13,6 +13,7 @@ import { isPersonalFoodChecked } from '@/lib/personal-food-checklist.mjs';
 import { personalFoodChecklistView } from '@/lib/personal-food-view.mjs';
 import { previewFoodPlanSync } from '@/lib/sync-food-plan.mjs';
 import { canonicalLocalDate } from '@/lib/calendar-date.mjs';
+import { foodLayoutFingerprint } from '@/lib/food-layout.mjs';
 import { groupMealRecipeRows } from '@/lib/meal-recipe-groups-view.mjs';
 import RecipePortionEditor from './recipe-portion-editor';
 import './day-food-checklist.css';
@@ -24,10 +25,11 @@ export type DayFoodChecklistProps = Latest & {
   refresh: () => Promise<unknown>; getLatest?: () => Latest | null; onOpenAdvanced?: () => void; onAddFood?: (mealId:string)=>void;
 };
 type PersonalCheck = {type:'personal_check';mealId:string;lineIds:string[];checked:boolean};
-type UiAction = Extract<ChecklistAction,{type:'move_remaining'}> | PersonalCheck;
+type LayoutMove = {type:'move_layout';fromMealId:string;lineIds:string[];toMealId:string};
+type UiAction = Extract<ChecklistAction,{type:'move_remaining'}> | PersonalCheck | LayoutMove;
 type QueueEntry = { action: UiAction; operationId: string; draftId: string; payload?: Record<string, unknown> };
 type Editor = { mealId: string; groupId: string; lineIds:string[]; baseFingerprint: string; mode: 'split' | 'portion'; quantity: string; moveQuantity: string; targetMealId: string };
-type Drag = { mealId: string; group: ChecklistGroup; x: number; y: number; targetMealId: string | null; moved: boolean };
+type Drag = { mealId:string; sourceMealId:string; id:string; lineIds:string[]; name:string; amountText:string; recipe:boolean; x:number; y:number; targetMealId:string|null; moved:boolean };
 const slots: Record<string, string> = { breakfast: uiText("Breakfast"), lunch: uiText("Lunch"), snack: uiText("Snack"), dinner: uiText("Dinner"), other: uiText("Other") };
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 const n = (value: number, digits = 1) => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: digits }).format(value);
@@ -63,21 +65,27 @@ function shortName(group: ChecklistGroup, items: readonly FoodItem[]) {
   return (text || original).slice(0, 28) + (date ? '·' + Number(date[1]) + '/' + Number(date[2]) : '');
 }
 function actionKeys(action: UiAction) {
-  const mealId = action.type === 'move_remaining' ? action.fromMealId : action.mealId;
+  const mealId = action.type === 'personal_check' ? action.mealId : action.fromMealId;
   return action.lineIds.map(id => key(mealId, id));
 }
-type ChecklistSection = {kind:'recipe'|'food';id:string;name:string;lineIds:string[];groups:ChecklistGroup[]};
-function checklistSections(source:Meal,meal:IntakeDraftMeal):ChecklistSection[] {
-  const sections=groupMealRecipeRows(source,meal.rows),looseRows=sections.filter(section=>section.kind==='food').flatMap(section=>section.rows);
+type ChecklistSection = {kind:'recipe'|'food';id:string;groupId?:string;sourceMealId:string;name:string;lineIds:string[];groups:ChecklistGroup[]};
+function checklistSections(plan:DietPlan,meal:IntakeDraftMeal):ChecklistSection[] {
+  const origins=new Map<string,typeof meal.rows>();
+  for(const row of meal.rows){const origin=(row as {sourceMealId?:string}).sourceMealId??meal.id;const list=origins.get(origin)??[];list.push(row);origins.set(origin,list);}
+  return [...origins].flatMap(([sourceMealId,sourceRows])=>{
+  const source=plan.meals.find(source=>source.id===sourceMealId);if(!source)return [];
+  const rows=plan.foodLayoutOverrides?.length?sourceRows.map(row=>({...row,sourceMealId})):sourceRows;
+  const sections=groupMealRecipeRows(source,rows),looseRows=sections.filter(section=>section.kind==='food').flatMap(section=>section.rows);
   const loose=groupChecklistRows({...meal,rows:looseRows}),seen=new Set<string>();
   return sections.flatMap<ChecklistSection>(section=>{
     if(section.kind==='recipe'){
-      const groups=groupChecklistRows({...meal,rows:section.rows}).map(group=>({...group,id:JSON.stringify(['recipe',section.id,group.id])}));
-      return [{...section,groups}];
+      const groups=groupChecklistRows({...meal,rows:section.rows}).map(group=>({...group,sourceMealId,id:JSON.stringify(['recipe',section.id,group.id])}));
+      return [{...section,id:sourceMealId===meal.id?section.id:JSON.stringify([sourceMealId,section.id]),groupId:section.groupId??section.id,sourceMealId,groups}];
     }
     const group=loose.find(group=>group.lineIds.includes(section.rows[0].lineId));
     if(!group||seen.has(group.id))return [];
-    seen.add(group.id);return [{kind:'food' as const,id:group.id,name:group.name,lineIds:group.lineIds,groups:[group]}];
+    seen.add(group.id);return [{kind:'food' as const,id:group.id,sourceMealId,name:group.name,lineIds:group.lineIds,groups:[{...group,sourceMealId}]}];
+  });
   });
 }
 
@@ -100,10 +108,11 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
   const blocked = readOnly || paused || busy && !saving;
   const allocationBlocked = blocked || !!plan.intakeDraft;
   const view = useMemo(() => personalFoodChecklistView(plan, items, checkedForLine), [plan, items, queued]);
-  const sectionsByMeal=useMemo(()=>new Map(view.meals.map(meal=>[meal.id,checklistSections(plan.meals.find(source=>source.id===meal.id)!,meal)])),[view,plan.meals]);
+  const sectionsByMeal=useMemo(()=>new Map(view.meals.map(meal=>[meal.id,checklistSections(plan,meal)])),[view,plan]);
+  const sourceMeals=view.sourceMeals??view.meals;
   const pending = new Set(queued.flatMap(entry => actionKeys(entry.action)));
-  const editMeal = editor ? view.meals.find(meal => meal.id === editor.mealId) : undefined;
-  const editGroup = editMeal ? sectionsByMeal.get(editMeal.id)?.flatMap(section=>section.groups).find(group => group.id === editor?.groupId) : undefined;
+  const editMeal = editor ? sourceMeals.find(meal => meal.id === editor.mealId) : undefined;
+  const editGroup = editMeal ? checklistSections(plan,editMeal).flatMap(section=>section.groups).find(group => group.id === editor?.groupId) : undefined;
   const nextMeal = editor ? view.meals.find(meal => meal.id === editor.targetMealId) : undefined;
   const editQuantity = editor?.quantity.trim() ? Number(editor.quantity) : NaN;
   const moveQuantity = editor?.moveQuantity.trim() ? Number(editor.moveQuantity) : NaN;
@@ -178,6 +187,10 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
           if (entry.action.type === 'personal_check') {
             entry.payload = {planId:latest.plan.id,mealId:entry.action.mealId,lineIds:entry.action.lineIds,checked:entry.action.checked,
               expectedRevision:latest.revision,operationId:entry.operationId};
+          } else if (entry.action.type === 'move_layout') {
+            const move=entry.action;
+            entry.payload = {planId:latest.plan.id,moves:move.lineIds.map(sourceId=>({sourceMealId:move.fromMealId,sourceKind:'planned',sourceId,targetMealId:move.toMealId})),
+              expectedFingerprint:foodLayoutFingerprint(latest.plan),expectedRevision:latest.revision,operationId:entry.operationId};
           } else {
             const result = buildChecklistAction(latest.plan, latest.items, entry.action, { draftId: entry.draftId });
             if (result.noChange) { queueRef.current.shift(); syncQueue(); continue; }
@@ -185,18 +198,18 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
               expectedRevision: latest.revision, operationId: entry.operationId };
           }
         }
-        const success = await apiRef.current.mutate(entry.action.type === 'personal_check' ? 'set_food_personal_check' : 'apply_checklist_intake', entry.payload, '');
+        const success = await apiRef.current.mutate(entry.action.type === 'personal_check' ? 'set_food_personal_check' : entry.action.type === 'move_layout' ? 'set_food_layout' : 'apply_checklist_intake', entry.payload, '');
         if (!success) throw new Error(uiText("Saving has not been confirmed. Review before retrying."));
         queueRef.current.shift(); syncQueue();
-        if (mountedRef.current) setNotice(entry.action.type === 'move_remaining' ? uiText("Meal allocation updated; inventory unchanged") : entry.action.checked ? uiText("Personal check saved") : uiText("Personal check cleared"));
+        if (mountedRef.current) setNotice(entry.action.type === 'move_layout' ? uiText("Meal layout saved; intake and inventory unchanged") : entry.action.type === 'move_remaining' ? uiText("Meal allocation updated; inventory unchanged") : entry.action.checked ? uiText("Personal check saved") : uiText("Personal check cleared"));
       }
     } catch (cause) {
       if (mountedRef.current) { setLocalError(cause instanceof Error ? uiText(cause.message) : uiText("Saving has not been confirmed. Refresh to verify.")); setPaused(true); }
     } finally { runningRef.current = false; if (mountedRef.current) setSaving(false); }
   }
   function enqueue(action: UiAction) {
-    const toggle = action.type === 'personal_check';
-    if ((toggle ? blocked : allocationBlocked) || paused || !toggle && queueRef.current.some(entry => JSON.stringify(entry.action) === JSON.stringify(action))) return;
+    const simple = action.type === 'personal_check' || action.type === 'move_layout';
+    if ((simple ? blocked : allocationBlocked) || paused || action.type!=='personal_check' && queueRef.current.some(entry => JSON.stringify(entry.action) === JSON.stringify(action))) return;
     queueRef.current.push({ action, operationId: crypto.randomUUID(), draftId: crypto.randomUUID() }); syncQueue();
     setNotice(''); void processQueue();
   }
@@ -212,16 +225,22 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
   }
   function cancelLongPress() { if (longPress.current) clearTimeout(longPress.current.timer); longPress.current = null; }
   function pressStart(event: ReactPointerEvent, mealId: string, group: ChecklistGroup) {
+    startLayoutPress(event,{mealId,sourceMealId:group.sourceMealId??mealId,id:group.id,lineIds:group.lineIds,name:shortName(group,items),amountText:amount(group.plannedQuantity,group.unit),recipe:false});
+  }
+  function pressRecipeStart(event:ReactPointerEvent,mealId:string,section:ChecklistSection,portionLabel:string){
+    startLayoutPress(event,{mealId,sourceMealId:section.sourceMealId,id:section.id,lineIds:section.lineIds,name:section.name,amountText:portionLabel,recipe:true});
+  }
+  function startLayoutPress(event:ReactPointerEvent,selection:Omit<Drag,'x'|'y'|'targetMealId'|'moved'>){
     if (event.button !== 0 || event.isPrimary === false) return;
     ignoreClickRef.current = false; cancelLongPress();
-    if (allocationBlocked || closed || !group.canEdit || !finite(group.remainingQuantity) || group.remainingQuantity <= 0 || group.lineIds.some(id => pending.has(key(mealId, id)))) return;
+    if (blocked || !selection.lineIds.length || selection.lineIds.some(id => pending.has(key(selection.sourceMealId, id)))) return;
     const element = event.currentTarget as HTMLElement, pointerId = event.pointerId, pointerType = event.pointerType;
     const x = event.clientX, y = event.clientY;
     const lift = () => {
       ignoreClickRef.current = true; cancelLongPress();
       dragPointer.current = { element, pointerId, pointerType };
       element.setPointerCapture?.(pointerId);
-      const initial = { mealId, group, x, y, targetMealId: null, moved: false };
+      const initial = { ...selection, x, y, targetMealId: null, moved: false };
       dragRef.current = initial; setDrag(initial);
     };
     longPress.current = { x, y, lift, timer: setTimeout(lift, 380) };
@@ -237,7 +256,7 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
   function completeItem(mealId: string, group: ChecklistGroup) {
     cancelLongPress();
     if (ignoreClickRef.current) { ignoreClickRef.current = false; return; }
-    enqueue({type:'personal_check',mealId,lineIds:group.lineIds,checked:!checkedForGroup(mealId,group)});
+    enqueue({type:'personal_check',mealId:group.sourceMealId??mealId,lineIds:group.lineIds,checked:!checkedForGroup(mealId,group)});
   }
   function checkedForLine(mealId:string,lineId:string) {
     let checked = isPersonalFoodChecked(plan,mealId,lineId);
@@ -246,14 +265,14 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
     }
     return checked;
   }
-  function checkedForGroup(mealId: string, group: ChecklistGroup) {return group.lineIds.length>0&&group.lineIds.every(lineId=>checkedForLine(mealId,lineId));}
-  function mixedForGroup(mealId:string,group:ChecklistGroup) {return !checkedForGroup(mealId,group)&&group.lineIds.some(lineId=>checkedForLine(mealId,lineId));}
+  function checkedForGroup(mealId: string, group: ChecklistGroup) {return group.lineIds.length>0&&group.lineIds.every(lineId=>checkedForLine(group.sourceMealId??mealId,lineId));}
+  function mixedForGroup(mealId:string,group:ChecklistGroup) {return !checkedForGroup(mealId,group)&&group.lineIds.some(lineId=>checkedForLine(group.sourceMealId??mealId,lineId));}
   function updateDrag(x: number, y: number) {
     const current = dragRef.current; if (!current) return;
     const element = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-checklist-meal]');
     const latest = apiRef.current.getLatest?.() ?? latestRef.current;
     const candidate = element?.closest<HTMLElement>('[data-checklist-plan]')?.dataset.checklistPlan === latest.plan.id ? element.dataset.checklistMeal ?? null : null;
-    const eligible = latest.plan.status !== 'cancelled' && latest.plan.meals.some(meal => meal.id === candidate && meal.state !== 'cancelled');
+    const eligible = latest.plan.meals.some(meal => meal.id === candidate);
     const target = eligible ? candidate : null;
     const moved = current.moved || Math.hypot(x - current.x, y - current.y) > 6;
     const next = { ...current, x, y, targetMealId: target !== current.mealId ? target : null, moved };
@@ -269,7 +288,7 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
   function finishDrag() {
     const current = dragRef.current; dragRef.current = null; setDrag(null);
     cancelDrag();
-    if (current?.moved && current.targetMealId) enqueue({ type: 'move_remaining', fromMealId: current.mealId, lineIds: current.group.lineIds, toMealId: current.targetMealId });
+    if (current?.moved && current.targetMealId) enqueue({ type: 'move_layout', fromMealId: current.sourceMealId, lineIds: current.lineIds, toMealId: current.targetMealId });
   }
   function saveEdit() {
     if (editor?.mode === 'split') {
@@ -284,15 +303,16 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
   }
 
   function renderFoodGroup(meal:IntakeDraftMeal,group:ChecklistGroup) {
-          const queuedForGroup = group.lineIds.some(id => pending.has(key(meal.id, id)));
+          const sourceMealId=group.sourceMealId??meal.id;
+          const queuedForGroup = group.lineIds.some(id => pending.has(key(sourceMealId, id)));
           const checked = checkedForGroup(meal.id, group);
           const mixed = mixedForGroup(meal.id,group);
           const label = shortName(group, items), displayed = group.plannedQuantity;
-          const dragging = drag?.mealId === meal.id && drag.group.id === group.id;
-          return <li key={group.id} className={'food-check-row' + (checked ? ' is-eaten' : '') + (queuedForGroup ? ' is-pending' : '') + (dragging ? ' is-dragging' : '')}>
+          const dragging = drag?.mealId === meal.id && !drag.recipe && drag.id === group.id;
+          return <li key={group.id} data-source-meal={sourceMealId} data-source-lines={JSON.stringify(group.lineIds)} className={'food-check-row' + (checked ? ' is-eaten' : '') + (queuedForGroup ? ' is-pending' : '') + (dragging ? ' is-dragging' : '')}>
             <button type="button" className="food-row-main" role="checkbox" aria-checked={mixed?'mixed':checked} aria-busy={queuedForGroup} aria-label={(checked ? uiText("Uncheck ") : uiText("Check ")) + mealName(meal) + " · " + label} disabled={blocked} title={group.name} onClick={() => completeItem(meal.id, group)} onPointerDown={event => pressStart(event, meal.id, group)} onPointerMove={pressMove} onPointerUp={pressEnd} onPointerCancel={() => { cancelLongPress(); cancelDrag(); }} onLostPointerCapture={() => { if (dragRef.current) cancelDrag(); }} onContextMenu={event => event.preventDefault()}>
               <span className="food-row-box">{checked ? <Check size={13}/> : mixed?'−':null}</span><span className="food-row-name">{label}</span><strong>{amount(displayed, group.unit)}</strong>
-            </button><button type="button" className="food-row-more" aria-label={uiText("Edit ") + mealName(meal) + " · " + label} title={uiText("Edit planned amount or move between meals")} disabled={allocationBlocked || queuedForGroup} onClick={() => openEditor(meal.id, group)}><MoreHorizontal size={15}/></button>
+            </button><button type="button" className="food-row-more" aria-label={uiText("Edit ") + mealName(meal) + " · " + label} title={uiText("Edit planned amount or move between meals")} disabled={allocationBlocked || queuedForGroup} onClick={() => openEditor(sourceMealId, group)}><MoreHorizontal size={15}/></button>
           </li>;
 
   }
@@ -302,31 +322,34 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
     <div className="food-checklist-plan-tools"><p className="food-checklist-plan-basis">{uiText("Planned food checklist · excludes supplements")}</p><button type="button" className="food-plan-sync-trigger" aria-haspopup="dialog" aria-expanded={syncOpen} disabled={paused || busy || saving || queued.length > 0} onClick={() => { cancelLongPress(); cancelDrag(); setSyncOpen(true); }}><ArrowRightLeft size={14}/>{plan.date === canonicalLocalDate() ? uiText("Sync today's plan") : uiText("Sync this day's plan")}</button></div>
     <div className="food-progress-strip" aria-label={uiText("Personal checklist progress")}><span>{uiText("Checked plan: ")}<strong>{total(view.totals.checked, 'kcal')}</strong>{uiText(" kcal")}</span><span>{uiText("Unchecked plan: ")}<strong>{total(view.totals.unchecked, 'kcal')}</strong>{uiText(" kcal")}</span><button type="button" className="food-day-trigger" aria-haspopup="dialog" aria-expanded={dayTotalsOpen} onClick={() => setDayTotalsOpen(value => !value)}>{uiText("Daily ingredients")}<ChevronDown size={12}/></button></div>
     {syncOpen && <FoodPlanSyncDialog plan={plan} items={items} revision={revision} busy={busy || saving || queued.length > 0} mutate={mutate} onClose={() => setSyncOpen(false)} onReviewDraft={() => { setSyncOpen(false); onOpenAdvanced?.(); }}/>}
-    {!!plan.intakeDraft && <div className="food-checklist-warning" role="status"><span>{uiText("An unsubmitted intake draft is saved. Personal checks are unaffected; review it before redistributing food.")}</span><button type="button" onClick={onOpenAdvanced}>{uiText("Review intake draft")}</button></div>}
+    {!!plan.intakeDraft && <div className="food-checklist-warning" role="status"><span>{uiText("An unsubmitted intake draft is saved. Personal checks and meal layout stay editable; review it before reporting actual intake.")}</span><button type="button" onClick={onOpenAdvanced}>{uiText("Review intake draft")}</button></div>}
     {(error || localError) && <div className="food-checklist-warning" role="alert"><span>{error || localError}</span>{paused ? <><button type="button" onClick={() => void retry()}>{uiText("Retry same action")}</button><button type="button" onClick={() => void reloadLatest()}>{uiText("Load latest and cancel pending action")}</button></> : <button type="button" onClick={() => void refresh()}>{uiText("Refresh and review")}</button>}</div>}
     {plan.inventoryAccounting === 'pending_reconciliation' && <div className="food-checklist-warning" role="status">{uiText("Intake records are saved; some ingredient accounting needs review.")}<button type="button" onClick={onOpenAdvanced}>{uiText("View details")}</button></div>}
     <div className="food-meal-grid">{mealColumns.map((column, columnIndex) => <div className="food-meal-column" key={columnIndex} aria-label={columnIndex === 0 ? uiText("Breakfast and snack") : uiText("Lunch and dinner")}>{column.map(meal => {
       const source = plan.meals.find(entry => entry.id === meal.id)!,sections=sectionsByMeal.get(meal.id)??[],groups=sections.flatMap(section=>section.groups);
       const nutrition = view.mealTotals.find(value=>value.mealId===meal.id)!;
-      const mealPending = queued.some(entry => entry.action.type === 'personal_check' && entry.action.mealId === meal.id);
+      const mealPending = groups.some(group=>group.lineIds.some(lineId=>pending.has(key(group.sourceMealId??meal.id,lineId))));
       const done = groups.length > 0 && groups.every(group => checkedForGroup(meal.id, group));
-      const partlyChecked = !done&&groups.some(group=>group.lineIds.some(lineId=>checkedForLine(meal.id,lineId)));
+      const partlyChecked = !done&&groups.some(group=>group.lineIds.some(lineId=>checkedForLine(group.sourceMealId??meal.id,lineId)));
       const target = drag?.moved && drag.targetMealId === meal.id;
-      return <section className={'food-meal-card' + (done ? ' is-complete' : '') + (target ? ' is-drop-target' : '') + (drag && meal.id !== drag.mealId && canReceiveChecklistFood(meal) ? ' can-receive-drag' : '')} key={meal.id} style={{ order: view.meals.indexOf(meal) }} data-checklist-meal={meal.id} aria-label={mealName(meal) + uiText(" plan")}>
+      return <section className={'food-meal-card' + (done ? ' is-complete' : '') + (target ? ' is-drop-target' : '') + (drag && meal.id !== drag.mealId ? ' can-receive-drag' : '')} key={meal.id} style={{ order: view.meals.indexOf(meal) }} data-checklist-meal={meal.id} aria-label={mealName(meal) + uiText(" plan")}>
         <header><div><h3>{mealName(meal)} <small>{source.plannedTime ?? ''}</small></h3><p><span className="food-meal-planned-label">{uiText("Planned food: ")}</span>{total(nutrition.totals, 'kcal')} kcal <span>· P{total(nutrition.totals, 'protein')} C{total(nutrition.totals, 'carbs')} F{total(nutrition.totals, 'fat')}</span></p></div><button type="button" role="checkbox" aria-checked={partlyChecked?'mixed':done} aria-busy={mealPending} className={'food-meal-check' + (done ? ' checked' : '')} disabled={blocked || !groups.length} onClick={() => {
           const checked = groups.every(group => checkedForGroup(meal.id, group));
-          enqueue({type:'personal_check',mealId:meal.id,lineIds:groups.flatMap(group=>group.lineIds),checked:!checked});
+          const origins=new Map<string,string[]>();
+          for(const group of groups){const origin=group.sourceMealId??meal.id;origins.set(origin,[...(origins.get(origin)??[]),...group.lineIds]);}
+          for(const [mealId,lineIds]of origins)enqueue({type:'personal_check',mealId,lineIds:[...new Set(lineIds)],checked:!checked});
         }} aria-label={done ? uiText("Uncheck ") + mealName(meal) : uiText("Check ") + mealName(meal)} title={done ? uiText("Uncheck meal") : uiText("Check meal")}><Check size={16}/><span>{done ? uiText("Checked") : uiText("Check meal")}</span></button></header>
         <ul>{sections.map(section=>{
           if(section.kind==='food')return renderFoodGroup(meal,section.groups[0]);
           const recipeKey=key(meal.id,section.id),expanded=openRecipes.includes(recipeKey),contentId=editHeading+'-recipe-'+encodeURIComponent(meal.id)+"-"+encodeURIComponent(section.id);
-          const checked=section.lineIds.length>0&&section.lineIds.every(lineId=>checkedForLine(meal.id,lineId));
-          const mixed=!checked&&section.lineIds.some(lineId=>checkedForLine(meal.id,lineId));
-          const recipePending=section.lineIds.some(lineId=>pending.has(key(meal.id,lineId)));
-          const recipePortion=source.recipeGroups?.find(group=>group.id===section.id)?.portion??1;
-          const recipePortionLabel=recipePortion===.5?uiText("Half portion"):recipePortion===1?uiText("Whole portion"):n(recipePortion,3)+uiText(" portions");
-          return <li className={'food-recipe-row'+(checked?' is-marked':'')} key={'recipe:'+section.id} data-recipe-id={section.id}>
-            <div className="food-recipe-heading"><button type="button" className="food-recipe-check" role="checkbox" aria-checked={mixed?'mixed':checked} aria-busy={recipePending} disabled={blocked} aria-label={(checked?uiText("Uncheck "):uiText("Check "))+mealName(meal)+uiText(" dish ")+section.name} title={uiText("Personal reminder only; does not indicate intake")} onClick={()=>enqueue({type:'personal_check',mealId:meal.id,lineIds:section.lineIds,checked:!checked})}><span className="food-row-box">{checked?<Check size={13}/>:mixed?'−':null}</span></button><button type="button" className="food-recipe-toggle" aria-expanded={expanded} aria-controls={contentId} aria-label={(expanded?uiText("Collapse "):uiText("Expand "))+mealName(meal)+" · "+section.name+uiText(" recipe")} onClick={()=>setOpenRecipes(values=>expanded?values.filter(value=>value!==recipeKey):[...values,recipeKey])}><span>{section.name}<small>{recipePortionLabel}{" · "}{section.groups.length}{uiText(" ingredients")}</small></span><ChevronDown size={14}/></button><button type="button" className="food-recipe-more" aria-label={uiText("Adjust ")+mealName(meal)+uiText(" recipe ")+section.name} title={uiText("Adjust whole recipe amount or allocation")} disabled={blocked||saving||queued.length>0} onClick={()=>{cancelLongPress();cancelDrag();setEditor(null);setRecipeEditor({mealId:meal.id,groupId:section.id});}}><MoreHorizontal size={15}/></button></div>
+          const checked=section.lineIds.length>0&&section.lineIds.every(lineId=>checkedForLine(section.sourceMealId,lineId));
+          const mixed=!checked&&section.lineIds.some(lineId=>checkedForLine(section.sourceMealId,lineId));
+          const recipePending=section.lineIds.some(lineId=>pending.has(key(section.sourceMealId,lineId)));
+          const recipeSource=plan.meals.find(meal=>meal.id===section.sourceMealId)?.recipeGroups?.find(group=>group.id===section.groupId);
+          const recipePortion=recipeSource?.portion??1;
+          const recipePortionLabel=recipeSource?.lineIds.length!==section.lineIds.length?uiText("Partial ingredients"):recipePortion===.5?uiText("Half portion"):recipePortion===1?uiText("Whole portion"):n(recipePortion,3)+uiText(" portions");
+          return <li className={'food-recipe-row'+(checked?' is-marked':'')+(drag?.recipe&&drag.mealId===meal.id&&drag.id===section.id?' is-dragging':'')} key={'recipe:'+section.id} data-recipe-id={section.id}>
+            <div className="food-recipe-heading"><button type="button" className="food-recipe-check" role="checkbox" aria-checked={mixed?'mixed':checked} aria-busy={recipePending} disabled={blocked} aria-label={(checked?uiText("Uncheck "):uiText("Check "))+mealName(meal)+uiText(" dish ")+section.name} title={uiText("Personal reminder only; does not indicate intake")} onClick={()=>enqueue({type:'personal_check',mealId:section.sourceMealId,lineIds:section.lineIds,checked:!checked})}><span className="food-row-box">{checked?<Check size={13}/>:mixed?'−':null}</span></button><button type="button" className="food-recipe-toggle" aria-expanded={expanded} aria-controls={contentId} aria-label={(expanded?uiText("Collapse "):uiText("Expand "))+mealName(meal)+" · "+section.name+uiText(" recipe")} title={uiText("Hold or drag to move the whole recipe")} onPointerDown={event=>pressRecipeStart(event,meal.id,section,recipePortionLabel)} onPointerMove={pressMove} onPointerUp={pressEnd} onPointerCancel={()=>{cancelLongPress();cancelDrag();}} onLostPointerCapture={()=>{if(dragRef.current)cancelDrag();}} onContextMenu={event=>event.preventDefault()} onClick={()=>{cancelLongPress();if(ignoreClickRef.current){ignoreClickRef.current=false;return;}setOpenRecipes(values=>expanded?values.filter(value=>value!==recipeKey):[...values,recipeKey]);}}><span>{section.name}<small>{recipePortionLabel}{" · "}{section.groups.length}{uiText(" ingredients")}</small></span><ChevronDown size={14}/></button><button type="button" className="food-recipe-more" aria-label={uiText("Adjust ")+mealName(meal)+uiText(" recipe ")+section.name} title={uiText("Adjust whole recipe amount or allocation")} disabled={blocked||saving||queued.length>0} onClick={()=>{cancelLongPress();cancelDrag();setEditor(null);setRecipeEditor({mealId:section.sourceMealId,groupId:section.groupId??section.id});}}><MoreHorizontal size={15}/></button></div>
             <ul className="food-recipe-ingredients" id={contentId} hidden={!expanded} aria-label={section.name+uiText(" recipe ingredients")}>{section.groups.map(group=>renderFoodGroup(meal,group))}</ul>
           </li>;
         })}</ul>{!groups.length && <p className="food-meal-empty">{uiText("Food dragged from another meal")}</p>}
@@ -335,7 +358,7 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
       </section>;
     })}</div>)}</div>
     {readOnly && <p className="food-checklist-readonly">{uiText("This day is cancelled. Reported intake is retained.")}</p>}
-    {drag && <div className="food-drag-ghost" style={{ left: Math.max(8, Math.min(drag.x - 90, (typeof window === 'undefined' ? 390 : window.innerWidth) - 200)), top: Math.max(8, drag.y - 80) }}><strong>{shortName(drag.group, items)}</strong> {amount(drag.group.remainingQuantity, drag.group.unit)}<small>{drag.targetMealId ? uiText("Release to move to ") + mealName(view.meals.find(meal => meal.id === drag.targetMealId)) : uiText("Drag to the target meal")}</small></div>}
+    {drag && <div className="food-drag-ghost" style={{ left: Math.max(8, Math.min(drag.x - 90, (typeof window === 'undefined' ? 390 : window.innerWidth) - 200)), top: Math.max(8, drag.y - 80) }}><strong>{drag.name}</strong> {drag.amountText}<small>{drag.targetMealId ? uiText("Release to move to ") + mealName(view.meals.find(meal => meal.id === drag.targetMealId)) : uiText("Drag to the target meal")}</small></div>}
     {recipeEditor&&<RecipePortionEditor key={plan.id+":"+recipeEditor.mealId+":"+recipeEditor.groupId} plan={plan} items={items} revision={revision} mealId={recipeEditor.mealId} groupId={recipeEditor.groupId} busy={busy||saving} mutate={mutate} onClose={()=>setRecipeEditor(null)}/>}
     {dayTotalsOpen && <div className="food-day-overlay" onPointerDown={event => { if (event.target === event.currentTarget) setDayTotalsOpen(false); }}><div className="food-day-dialog" role="dialog" aria-modal="true" aria-labelledby={totalsHeading} tabIndex={-1} ref={totalsRef}>
       <header><div><h2 id={totalsHeading}>{uiText("Daily ingredient totals")}</h2><p>{uiText("Matching food amounts combined")}</p></div><button type="button" className="food-day-close" aria-label={uiText("Close daily ingredient totals")} onClick={() => setDayTotalsOpen(false)}><X size={20}/><span>{uiText("Close")}</span></button></header>

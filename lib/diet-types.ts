@@ -4,6 +4,9 @@ import type { PersonalFoodChecks } from './personal-food-checklist.mjs';
 import type { DailyMenuSettlement } from './daily-menu-settlement.mjs';
 import type { RecipeGroup } from './recipe-groups.mjs';
 import type { RecipeGroupAction } from './recipe-group-actions.mjs';
+import type { ActualRecipeGroup, ActualRecipeGroupHistory } from './actual-recipe-groups.mjs';
+import type { FoodLayoutMove, FoodLayoutHistory } from './food-layout.mjs';
+export type { ActualRecipeGroup } from './actual-recipe-groups.mjs';
 export type { RecipeGroup } from './recipe-groups.mjs';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'other';
@@ -30,20 +33,22 @@ export type AccountingWarning = { code: 'STOCK_SHORTFALL_RECORDED'; itemId: stri
 export type AccountingAdjustment = { at: string; itemId: string; unit: string; code: 'STOCK_SHORTFALL_RECORDED' | 'STOCK_SHORTFALL_REDUCED'; basis: 'reported_actual' | 'automatic_menu'; targetBefore: number; targetAfter: number; stockBefore: number | null; stockAfter: number | null; shortfallBefore: number; shortfallAfter: number; inventoryDelta: number };
 export type IntakeReportHistory = { reportedAt: string; mode: IntakeMode; sourceText: string; actualTime: string | null; actualTimeText: string; entryIds: string[]; matchesConfirmedPlan: boolean };
 export type MealPlanRevision = { at: string; previous: { slot: MealSlot; title: string; plannedTime: string | null; plannedTimeText: string; plannedItems: PlannedFood[]; recipeGroups?: RecipeGroup[] } };
-export type Meal = Omit<MealInput, 'plannedItems'> & { plannedTime: string | null; plannedTimeText: string; plannedItems: PlannedFood[]; planRevisionHistory?: MealPlanRevision[]; actualEntries: ActualEntry[]; actualTime: string | null; actualTimeText: string; completionReportedAt: string | null; sourceText: string; reportHistory: IntakeReportHistory[]; state: 'reserved' | 'in_progress' | 'completed' | 'cancelled' };
+export type Meal = Omit<MealInput, 'plannedItems'> & { plannedTime: string | null; plannedTimeText: string; plannedItems: PlannedFood[]; planRevisionHistory?: MealPlanRevision[]; actualRecipeGroups?: ActualRecipeGroup[]; actualRecipeGroupHistory?: ActualRecipeGroupHistory[]; actualEntries: ActualEntry[]; actualTime: string | null; actualTimeText: string; completionReportedAt: string | null; sourceText: string; reportHistory: IntakeReportHistory[]; state: 'reserved' | 'in_progress' | 'completed' | 'cancelled' };
 export type SupplementDose = Required<DoseInput> & { nutritionSnapshot: NutritionSnapshot; actualEntries: ActualEntry[]; actualTime: string | null; actualTimeText: string; actualMealId: string | null; reportSourceText: string; reportHistory: IntakeReportHistory[]; completionReportedAt: string | null; state: 'reserved' | 'in_progress' | 'completed' | 'cancelled' };
 export type LegacyReservations = { meals: { id: string; plannedItems: { itemId: string | null; quantity: number; unit: string }[] }[]; supplementDoses: { id: string; itemId: string; plannedQuantity: number | null; unit: string; scheduled: boolean }[]; allocationAdjustments: Record<string, number> };
-export type DietPlan = { accountingWarnings?: AccountingWarning[]; accountingAdjustmentHistory?: AccountingAdjustment[]; personalFoodChecks?: PersonalFoodChecks; dailySettlement?: DailyMenuSettlement; id: string; format: 'meals_v1'; date: string; title: string; timeZone: string; notes: string; status: 'draft' | 'reserved' | 'cancelled' | 'closed_with_actuals'; meals: Meal[]; supplementDoses: SupplementDose[]; items: AccountingLine[]; accountedDebits: AccountingLine[]; allocationAdjustments: Record<string, number>; inventoryAccounting: 'settled' | 'pending_reconciliation'; accountingIssues: { code: string; itemId?: string; message: string }[]; draft?: DietPlanDraft; supplementOnly?: boolean; foodAccounting?: 'actual_only'; legacyReservations?: LegacyReservations; supplementAccounting?: 'actual_only' | 'full_plan'; intakeDraft?: IntakeDraftInput; intakeDraftAudit?: { id: string; at: string; draft: IntakeDraftInput }[]; intakeBasis: 'confirmed_daily_plan' | 'reported_only' | 'none'; createdAt: string; updatedAt: string };
+export type DietPlan = { foodLayoutOverrides?: FoodLayoutMove[]; foodLayoutHistory?: FoodLayoutHistory[]; accountingWarnings?: AccountingWarning[]; accountingAdjustmentHistory?: AccountingAdjustment[]; personalFoodChecks?: PersonalFoodChecks; dailySettlement?: DailyMenuSettlement; id: string; format: 'meals_v1'; date: string; title: string; timeZone: string; notes: string; status: 'draft' | 'reserved' | 'cancelled' | 'closed_with_actuals'; meals: Meal[]; supplementDoses: SupplementDose[]; items: AccountingLine[]; accountedDebits: AccountingLine[]; allocationAdjustments: Record<string, number>; inventoryAccounting: 'settled' | 'pending_reconciliation'; accountingIssues: { code: string; itemId?: string; message: string }[]; draft?: DietPlanDraft; supplementOnly?: boolean; foodAccounting?: 'actual_only'; legacyReservations?: LegacyReservations; supplementAccounting?: 'actual_only' | 'full_plan'; intakeDraft?: IntakeDraftInput; intakeDraftAudit?: { id: string; at: string; draft: IntakeDraftInput }[]; intakeBasis: 'confirmed_daily_plan' | 'reported_only' | 'none'; createdAt: string; updatedAt: string };
 export type SupplementRoutine = { sourcePlanId: string | null; updatedAt: string; supplementDoses: DoseInput[] };
 export type DailySupplementView = { plan: DietPlan | null; virtual: boolean; sourcePlanId: string | null; issues: { code: string; message: string; doseId?: string }[] };
 export type IntakeMode = 'append' | 'correct' | 'complete';
 export type DoseReport = { doseId: string; mode?: IntakeMode; entries?: ActualEntryInput[]; matchesPlannedDose?: boolean; actualTime?: string | null; actualTimeText?: string; actualMealId?: string | null; sourceText?: string };
-export type MealReport = { mealId: string; mode?: IntakeMode; entries?: ActualEntryInput[]; matchesPlannedFood?: boolean; actualTime?: string | null; actualTimeText?: string; sourceText?: string };
+export type MealReport = { mealId: string; mode?: IntakeMode; entries?: ActualEntryInput[]; matchesPlannedFood?: boolean; actualTime?: string | null; actualTimeText?: string; sourceText?: string; actualRecipeGroups?: ActualRecipeGroup[] };
 /** Personal reminders never represent actual intake or inventory consumption. */
 export type PersonalFoodCheckInput = { planId: string; mealId: string; checked: boolean } &
   ({ lineIds: string[]; wholeMeal?: never } | { wholeMeal: true; lineIds?: never });
 export type DietAction =
   | RecipeGroupAction
+  | { action: 'set_actual_recipe_groups'; planId: string; mealId: string; groups: ActualRecipeGroup[] }
+  | { action: 'set_food_layout'; planId: string; moves: FoodLayoutMove[]; expectedFingerprint?: string }
   | { action: 'sync_food_plan'; planId: string; expectedFingerprint: string }
   | { action: 'add_food_to_meal'; planId: string; mealId: string; itemId: string; quantity: number; expectedDraftVersion?: string | null }
   | ({ action: 'set_food_personal_check' } & PersonalFoodCheckInput)
@@ -56,7 +61,7 @@ export type DietAction =
   | { action: 'commit_meal_plan'; planId: string; confirmed: true }
   | { action: 'revise_unconsumed_meals'; planId: string; confirmed: true; meals?: MealInput[]; supplementDoses?: DoseInput[]; allocationOnly?: boolean }
   | ({ action: 'patch_meal_plan' } & MealPlanPatch)
-  | { action: 'record_meal_intake'; planId: string; mealId: string; nutritionCorrections?: ActualNutritionCorrection[]; mode?: IntakeMode; entries?: ActualEntryInput[]; matchesPlannedFood?: boolean; actualTime?: string | null; actualTimeText?: string; sourceText?: string; supplements?: DoseReport[] }
+  | { action: 'record_meal_intake'; planId: string; mealId: string; nutritionCorrections?: ActualNutritionCorrection[]; mode?: IntakeMode; entries?: ActualEntryInput[]; matchesPlannedFood?: boolean; actualTime?: string | null; actualTimeText?: string; sourceText?: string; actualRecipeGroups?: ActualRecipeGroup[]; supplements?: DoseReport[] }
   | { action: 'record_meal_intake'; planId: string; meals: MealReport[]; supplements?: DoseReport[] }
   | ({ action: 'record_supplement_intake'; planId: string } & DoseReport)
   | { action: 'set_supplement_check'; planId: string; doseId: string; checked: boolean }

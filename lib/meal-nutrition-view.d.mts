@@ -6,6 +6,10 @@ export type MealNutritionRow = {
   id: string; itemId: string | null; name: string; quantity: number | null; unit: string;
   displayQuantity?: number | null; displayUnit?: string;
   origin: 'planned' | 'reported' | 'remaining'; totals: PlanNutritionTotal[];
+  /** Proven actual contributors; aggregate rows never inherit the first report alone. */
+  actualEntryIds?: string[];
+  /** Original canonical owner retained by the read-only meal arrangement. */
+  sourceMealId?:string; sourceKind?:'planned'|'actual';
   partial: boolean; estimated: boolean; zero: boolean; quantityUnknown: boolean; conversionMissing: boolean;
   nutritionSource: MealNutrientSource;
   nutrientSources: Record<'kcal' | 'protein' | 'carbs' | 'fat', MealNutrientSource>;

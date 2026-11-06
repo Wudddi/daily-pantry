@@ -5,6 +5,8 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ts from 'typescript';
 import { applyMutation, validateItem } from '../lib/inventory.mjs';
+import { personalFoodChecklistView } from '../lib/personal-food-view.mjs';
+import { planNutritionTotals } from '../lib/diet-nutrition.mjs';
 
 const path = new URL('../app/day-food-checklist.tsx', import.meta.url);
 const recipeSource=await readFile(new URL('../app/recipe-portion-editor.tsx',import.meta.url),'utf8');
@@ -50,7 +52,7 @@ test('default screen shows every meal as a compact checklist, without numeric in
 test('an older intake draft is never submitted and does not block private checks',()=>{
   const state=fixture();state.plans[0].intakeDraft={id:'old',baseFingerprint:'old',consumed:[],transfers:[],completedMealIds:[]};
   const html=renderToStaticMarkup(React.createElement(Component,props(state)));
-  assert.match(html,/Personal checks are unaffected/);assert.match(html,/Review intake draft/);
+  assert.match(html,/Personal checks and meal layout stay editable/);assert.match(html,/Review intake draft/);
   assert.doesNotMatch(html,/class="food-row-main"[^>]*disabled=""/);
 });
 
@@ -182,6 +184,82 @@ function holdFood(ui,mealId,name,{pointerId=1,x=10,y=100,pointerType='mouse'}={}
   ui.render();return{row,target,pointerId};
 }
 
+function holdRecipe(ui,id){
+  const row=find(recipeNode(ui,id),node=>node.props?.className==='food-recipe-toggle');assert(row);
+  const target={setPointerCapture(){},hasPointerCapture:()=>true,releasePointerCapture(){}};
+  const timeout=globalThis.setTimeout,clear=globalThis.clearTimeout;let lift;
+  globalThis.setTimeout=callback=>(lift=callback,1);globalThis.clearTimeout=()=>{};
+  try{row.props.onPointerDown({button:0,isPrimary:true,pointerId:17,pointerType:'touch',clientX:10,clientY:100,currentTarget:target});assert(lift,'the whole dish title supports long press');lift();}
+  finally{globalThis.setTimeout=timeout;globalThis.clearTimeout=clear;}
+  ui.render();return{row,target,pointerId:17};
+}
+
+async function dropHeld(ui,held,toMealId){
+  const card={dataset:{checklistMeal:toMealId},closest:()=>({dataset:{checklistPlan:ui.state.plans[0].id}})};
+  globalThis.document.elementFromPoint=()=>({closest:()=>card});
+  held.row.props.onPointerMove({pointerId:held.pointerId,pointerType:'mouse',clientX:80,clientY:260,preventDefault(){},currentTarget:held.target});ui.render();
+  held.row.props.onPointerUp({pointerId:held.pointerId,currentTarget:held.target});held.row.props.onClick();await pause();ui.render();
+}
+
+test('checked and fully reported food can be dragged with a pending intake draft while factual intake and stock stay unchanged',withDocument(async()=>{
+  let state=fixture();
+  state=applyMutation(state,{action:'record_meal_intake',operationId:'demo-layout-reported',expectedRevision:state.revision,planId:state.plans[0].id,mealId:'lunch',mode:'complete',matchesPlannedFood:true,sourceText:'DEMO reported meal'},NOW);
+  state=applyMutation(state,{action:'set_food_personal_check',operationId:'demo-layout-marked',expectedRevision:state.revision,planId:state.plans[0].id,mealId:'lunch',lineIds:['lunch-rice'],checked:true},NOW);
+  state.plans[0].intakeDraft={id:'demo-preserved-draft',baseFingerprint:'demo-stale',consumed:[],transfers:[],completedMealIds:[]};
+  const ui=mount(undefined,state),before=structuredClone(state),held=holdFood(ui,'lunch','Rice');
+  await dropHeld(ui,held,'dinner');
+  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].action,'set_food_layout');
+  assert.deepEqual(ui.state.plans[0].meals,before.plans[0].meals);assert.deepEqual(ui.state.items,before.items);
+  assert.deepEqual(ui.state.plans[0].intakeDraft,before.plans[0].intakeDraft);
+  assert.deepEqual(ui.state.plans[0].accountedDebits,before.plans[0].accountedDebits);
+  assert.deepEqual(planNutritionTotals(ui.state.plans[0]),planNutritionTotals(before.plans[0]));
+  assert(ui.state.plans[0].foodLayoutOverrides.some(move=>move.sourceKind==='actual'&&move.targetMealId==='dinner'));
+  assert.equal(foodCheckbox(ui,'dinner','Rice').props['aria-checked'],true,'the moved reminder keeps its original check');
+  await ui.click('Uncheck Dinner · Rice');await pause();ui.render();
+  assert.equal(ui.calls[1].payload.mealId,'lunch','checking a placed row still addresses its original reminder');
+  assert.deepEqual(ui.calls[1].payload.lineIds,['lunch-rice']);
+}));
+
+test('a checked collapsed dessert title drags every mixed ingredient together without opening or toggling the dish',withDocument(async()=>{
+  const ui=mount(undefined,recipeFixture());await ui.click('Check Breakfast dish Banana chocolate brownies');await pause();ui.render();
+  const before=structuredClone(ui.state),held=holdRecipe(ui,'brownie');
+  assert.match(text(ui.find(node=>node.props?.className==='food-drag-ghost')),/Banana chocolate brownies/);
+  await dropHeld(ui,held,'lunch');
+  assert.equal(ui.calls.length,2);assert.equal(ui.calls[1].action,'set_food_layout');
+  assert.deepEqual(ui.calls[1].payload.moves.map(move=>move.sourceId),['banana-b','cocoa-b','yogurt-b']);
+  assert(ui.calls[1].payload.moves.every(move=>move.sourceMealId==='breakfast'&&move.targetMealId==='lunch'));
+  assert.deepEqual(ui.state.plans[0].meals,before.plans[0].meals);assert.deepEqual(ui.state.items,before.items);
+  assert.deepEqual(ui.state.plans[0].personalFoodChecks,before.plans[0].personalFoodChecks);
+  const placed=ui.find(node=>node.type==='button'&&node.props['aria-label']==='Expand Lunch · Banana chocolate brownies recipe');assert(placed);assert.equal(placed.props['aria-expanded'],false);
+  assert(ui.find(node=>node.props?.['aria-label']==='Uncheck Lunch dish Banana chocolate brownies'));
+  assert.equal(recipeCheck(ui,'basque').props['aria-checked'],false);
+}));
+
+test('an unconfirmed layout write retries the exact operation without another placement audit or stock change',withDocument(async()=>{
+  let attempts=0;const ui=mount(ctx=>{ctx.state=applyMutation(ctx.state,{action:ctx.action,...ctx.payload},NOW);return ++attempts>1;});
+  const before=structuredClone(ui.state);await dropHeld(ui,holdFood(ui,'lunch','Rice'),'dinner');
+  assert.equal(ui.calls.length,1);const saved=structuredClone(ui.state);
+  await ui.click('Retry same action');await pause();ui.render();
+  assert.equal(ui.calls.length,2);assert.deepEqual(ui.calls[1],ui.calls[0]);assert.deepEqual(ui.state,saved);
+  assert.deepEqual(ui.state.items,before.items);assert.deepEqual(ui.state.plans[0].meals,before.plans[0].meals);
+}));
+
+test('a moved reminder can be dragged back to its original meal without losing its source or check identity',withDocument(async()=>{
+  const ui=mount(),before=structuredClone(ui.state);
+  await dropHeld(ui,holdFood(ui,'lunch','Rice'),'snack');
+  const display=personalFoodChecklistView(ui.state.plans[0],ui.state.items),moved=display.meals.find(meal=>meal.id==='snack').rows.find(row=>row.sourceMealId==='lunch');assert(moved);
+  // There are two rice reminders at snack; identify the moved row by its saved
+  // source rather than accidentally dragging the original snack serving.
+  const placed=find(ui.find(node=>node.props?.['data-checklist-meal']==='snack'),node=>node.props?.['data-source-meal']==='lunch'&&node.props?.['data-source-lines']==='["lunch-rice"]');assert(placed);
+  const row=find(placed,node=>node.type==='button'&&node.props.role==='checkbox'),target={setPointerCapture(){},hasPointerCapture:()=>true,releasePointerCapture(){}};
+  row.props.onPointerDown({button:0,pointerId:5,pointerType:'mouse',clientX:10,clientY:100,currentTarget:target});
+  await dropHeld(ui,{row,target,pointerId:5},'lunch');
+  assert.equal(ui.calls[1].payload.moves[0].sourceMealId,'lunch');
+  assert.equal(ui.calls[1].payload.moves[0].targetMealId,'lunch');
+  assert.deepEqual(ui.state.plans[0].foodLayoutOverrides,[]);
+  assert.deepEqual(ui.state.plans[0].meals,before.plans[0].meals);assert.deepEqual(ui.state.items,before.items);
+}));
+
 test('long pressing a food selects it for dragging, never opens editing, and suppresses its synthetic click',withDocument(async()=>{
   const ui=mount(),{row,target,pointerId}=holdFood(ui,'lunch',"Rice");
   assert.equal(ui.find(node=>node.props?.role==='dialog'),null);
@@ -190,8 +268,8 @@ test('long pressing a food selects it for dragging, never opens editing, and sup
   row.props.onPointerUp({pointerId,currentTarget:target});row.props.onClick();await pause();ui.render();assert.equal(ui.calls.length,0);
 }));
 
-test('long-press dragging the full food row moves only its remaining portion and does not need a separate handle',withDocument(async()=>{
-  const ui=mount(),{row,target,pointerId}=holdFood(ui,'lunch',"Rice");
+test('long-press dragging the food row saves its meal layout without rewriting planned food or actual records',withDocument(async()=>{
+  const ui=mount(),before=structuredClone(ui.state),{row,target,pointerId}=holdFood(ui,'lunch',"Rice");
   assert.equal(ui.find(node=>node.props?.className==='food-row-drag'),null);
   const card={dataset:{checklistMeal:'dinner'},closest:()=>({dataset:{checklistPlan:ui.state.plans[0].id}})};
   globalThis.document.elementFromPoint=()=>({closest:()=>card});
@@ -199,8 +277,10 @@ test('long-press dragging the full food row moves only its remaining portion and
   assert(ui.find(node=>node.props?.['data-checklist-meal']==='dinner').props.className.includes('is-drop-target'));
   assert.match(text(ui.find(node=>node.props?.className==='food-drag-ghost')),/Rice.*200 g.*Dinner/);
   row.props.onPointerUp({pointerId,currentTarget:target});await pause();ui.render();
-  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].payload.draft.consumed.length,0);
-  const plan=ui.state.plans[0];assert.equal(plan.meals.find(meal=>meal.id==='dinner').plannedItems.filter(line=>line.itemId==='rice').reduce((sum,line)=>sum+line.quantity,0),400);
+  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].action,'set_food_layout');assert.equal(ui.calls[0].payload.draft,undefined);
+  const plan=ui.state.plans[0],display=personalFoodChecklistView(plan,ui.state.items);
+  assert.equal(display.meals.find(meal=>meal.id==='dinner').rows.filter(row=>row.itemId==='rice').reduce((sum,row)=>sum+row.plannedQuantity,0),400);
+  assert.deepEqual(plan.meals,before.plans[0].meals);
   assert.equal(ui.state.items.find(item=>item.id==='rice').quantity,1000);assert.equal(plan.meals.flatMap(meal=>meal.actualEntries).length,0);
   assert.equal(ui.find(node=>node.type==='li'&&node.props.className?.includes('is-dragging')),null);
 }));
@@ -216,8 +296,8 @@ test('a desktop mouse can drag the food row immediately without waiting for a lo
   assert(ui.find(node=>node.props?.className==='food-drag-ghost'),'moving the mouse lifts the full row immediately');
   assert(ui.find(node=>node.props?.['data-checklist-meal']==='lunch').props.className.includes('is-drop-target'));
   row.props.onPointerUp({pointerId:9,currentTarget:target});row.props.onClick();await pause();ui.render();
-  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].payload.draft.consumed.length,0);
-  assert.equal(ui.calls[0].payload.draft.transfers[0].fromMealId,'dinner');assert.equal(ui.calls[0].payload.draft.transfers[0].toMealId,'lunch');
+  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].action,'set_food_layout');assert.equal(ui.calls[0].payload.draft,undefined);
+  assert.deepEqual(ui.calls[0].payload.moves,[{sourceMealId:'dinner',sourceKind:'planned',sourceId:'dinner-rice',targetMealId:'lunch'}]);
   assert.deepEqual(ui.state.items,before.items);assert.equal(ui.state.plans[0].meals.flatMap(meal=>meal.actualEntries).length,0);
 }));
 
@@ -379,7 +459,7 @@ test('native touch moves prevent scrolling only after a long press and touch end
   assert.equal(prevented,1);assert(ui.find(node=>node.props?.['data-checklist-meal']==='breakfast').props.className.includes('is-drop-target'));
   globalThis.document.dispatchEvent({type:'touchend'});await pause();ui.render();
   row.props.onPointerUp({});row.props.onClick();await pause();ui.render();
-  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].payload.draft.consumed.length,0);
+  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].action,'set_food_layout');assert.equal(ui.calls[0].payload.draft,undefined);
   assert.equal(ui.state.items.find(item=>item.id==='rice').quantity,1000);
   assert.equal(ui.find(node=>node.props?.className==='food-drag-ghost'),null);
 }));
@@ -460,7 +540,7 @@ test('an expanded recipe ingredient still supports long-press drag without check
   try{row.props.onPointerDown({button:0,isPrimary:true,pointerId:9,pointerType:'touch',clientX:20,clientY:120,currentTarget:target});lift();ui.render();}finally{globalThis.setTimeout=originalTimeout;globalThis.clearTimeout=originalClear;}
   const card={dataset:{checklistMeal:'lunch'},closest:()=>({dataset:{checklistPlan:ui.state.plans[0].id}})};globalThis.document.elementFromPoint=()=>({closest:()=>card});
   row.props.onPointerMove({pointerId:9,clientX:80,clientY:260,preventDefault(){},currentTarget:target});ui.render();row.props.onPointerUp({});row.props.onClick();await pause();ui.render();
-  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].payload.draft.transfers[0].lineId,'cocoa-b');assert.equal(ui.calls[0].payload.draft.consumed.length,0);assert.deepEqual(ui.state.items,before.items);
+  assert.equal(ui.calls.length,1);assert.equal(ui.calls[0].action,'set_food_layout');assert.deepEqual(ui.calls[0].payload.moves,[{sourceMealId:'breakfast',sourceKind:'planned',sourceId:'cocoa-b',targetMealId:'lunch'}]);assert.deepEqual(ui.state.items,before.items);
   assert.equal(ui.state.plans[0].personalFoodChecks,undefined);assert.equal(ui.state.plans[0].meals.find(meal=>meal.id==='breakfast').plannedItems.find(line=>line.id==='yogurt-k').quantity,100);
 }));
 test('changing only recipe membership cannot retarget an already-open ingredient editor',withDocument(async()=>{

@@ -2,7 +2,8 @@ import { uiText, uiLocale, getUiLanguage } from '@/lib/ui-language.mjs';
 import type { PlanNutritionTotal } from '@/lib/diet-nutrition.mjs';
 import type { MealNutritionRow } from '@/lib/meal-nutrition-view.mjs';
 import type { Meal } from '@/lib/diet-types';
-import { groupMealRecipeRows } from '@/lib/meal-recipe-groups-view.mjs';
+import type { FoodLayoutSection } from '@/lib/food-layout-view.mjs';
+import { groupMealRecipeRows, recipeIngredientDisplayName, type MealRecipeSection } from '@/lib/meal-recipe-groups-view.mjs';
 import { foodDisplayAmount } from '@/lib/food-display-amount.mjs';
 import './meal-nutrition.css';
 
@@ -36,22 +37,22 @@ export function MealNutritionSummary({ totals, basisLabel = uiText("Meal nutriti
   </section>;
 }
 
-export type FoodNutritionListProps = { rows: readonly MealNutritionRow[]; meal?: Meal; planId?: string; ariaLabel?: string; emptyText?: string };
-export function FoodNutritionList({ rows, meal, planId, ariaLabel = uiText("Food portions and nutrition details"), emptyText = uiText("No food details provided.") }: FoodNutritionListProps) {
+export type FoodNutritionListProps = { rows: readonly MealNutritionRow[]; meal?: Meal; planId?: string; sections?:readonly FoodLayoutSection[]; ariaLabel?: string; emptyText?: string };
+export function FoodNutritionList({ rows, meal, planId, sections:arrangedSections, ariaLabel = uiText("Food portions and nutrition details"), emptyText = uiText("No food details provided.") }: FoodNutritionListProps) {
   const withSources = rows.filter(row => row.sourceText || row.sourceNote || keys.some(key => row.nutrientSources?.[key] && row.nutrientSources[key] !== 'unknown'));
   if (!rows.length) return <p className="meal-nutrition-empty">{emptyText}</p>;
-  const sections = groupMealRecipeRows(meal, rows, { planId });
-  const foodRow = (row: MealNutritionRow) => <li key={row.origin + ':' + row.id} className={'meal-food-row' + (row.zero && row.origin === 'reported' ? ' is-uneaten' : '')}>
-    <div className="meal-food-identity"><div className="meal-food-heading"><h4>{row.name || uiText("Unnamed food")}</h4><p className="meal-food-quantity">{row.zero && row.origin === 'reported' && <span>{uiText("Not eaten · ")}</span>}{foodDisplayAmount(row).text}</p></div>
+  const sections = arrangedSections ?? groupMealRecipeRows(meal, rows, { planId });
+  const foodRow = (row: MealNutritionRow, section?:MealRecipeSection<MealNutritionRow>) => <li key={(row.sourceMealId ? row.sourceMealId + ':' : '') + row.origin + ':' + row.id} className={'meal-food-row' + (row.zero && row.origin === 'reported' ? ' is-uneaten' : '')}>
+    <div className="meal-food-identity"><div className="meal-food-heading"><h4>{recipeIngredientDisplayName(section,row) || uiText("Unnamed food")}</h4><p className="meal-food-quantity">{row.zero && row.origin === 'reported' && <span>{uiText("Not eaten · ")}</span>}{foodDisplayAmount(row).text}</p></div>
       {row.remainingNote ? <p className="meal-food-note">{uiText(row.remainingNote)}</p> : row.quantityUnknown ? <p className="meal-food-note">{uiText("Amount unreported; complete nutrition cannot be calculated.")}</p> : row.conversionMissing ? <p className="meal-food-note">{uiText("The portion cannot be converted to the nutrition basis. Review required.")}</p> : null}
     </div>
     <dl className="meal-food-metrics">{keys.map(key => <NutrientMetric key={key} nutrient={key} total={findTotal(row.totals, key)} prominent={key === 'kcal'}/>)}</dl>
   </li>;
   return <section className="meal-food-nutrition" aria-label={ariaLabel}>
     <div className="meal-food-table-head" aria-hidden="true"><span>{uiText("Food and amounts")}</span><div>{keys.map(key => <span key={key}>{labels[key]} <small>{key === 'kcal' ? 'kcal' : 'g'}</small></span>)}</div></div>
-    <ul className="meal-food-list">{sections.flatMap(section => section.kind === 'recipe' ? [<li key={'recipe:' + section.id} className="meal-food-recipe"><details><summary><strong>{section.name}</strong><span>{section.rows.length}{uiText(" ingredients")}</span></summary><ul className="meal-food-list">{section.rows.map(foodRow)}</ul></details></li>] : section.rows.map(foodRow))}</ul>
+    <ul className="meal-food-list">{sections.flatMap(section => section.kind === 'recipe' ? [<li key={'recipe:' + section.id} className="meal-food-recipe"><details><summary><strong>{section.name}</strong><span>{'partialRecipe' in section && section.partialRecipe ? <>{uiText("Part of recipe")}{" · "}</> : section.portion !== undefined && <>{section.portion === .5 ? uiText("Half portion") : section.portion === 1 ? uiText("Whole portion") : new Intl.NumberFormat(uiLocale(),{maximumFractionDigits:3}).format(section.portion)+uiText(" portions")}{" · "}</>}{section.rows.length}{uiText(" ingredients")}</span></summary><ul className="meal-food-list" data-recipe-source={section.source}>{section.rows.map(row => foodRow(row,section))}</ul></details></li>] : section.rows.map(row => foodRow(row)))}</ul>
     <p className="meal-food-legend">{uiText("Calculated from each current amount · ≈ indicates an estimate")}</p>
-    {withSources.length > 0 && <details className="meal-food-sources"><summary>{uiText("View nutrition sources")}</summary>{withSources.map(row => <div key={row.origin + ':' + row.id}><strong>{row.name}</strong><p>{keys.map(key => labels[key] + ": " + (sourceLabels[row.nutrientSources?.[key] ?? 'unknown'] ?? uiText("Saved nutrition sources"))).join(" · ")}</p>{row.sourceNote && <p className="meal-source-original">{row.sourceNote}</p>}{row.sourceText && <p className="meal-source-original">{row.sourceText}</p>}</div>)}</details>}
+    {withSources.length > 0 && <details className="meal-food-sources"><summary>{uiText("View nutrition sources")}</summary>{withSources.map(row => <div key={(row.sourceMealId ? row.sourceMealId + ':' : '') + row.origin + ':' + row.id}><strong>{row.name}</strong><p>{keys.map(key => labels[key] + ": " + (sourceLabels[row.nutrientSources?.[key] ?? 'unknown'] ?? uiText("Saved nutrition sources"))).join(" · ")}</p>{row.sourceNote && <p className="meal-source-original">{row.sourceNote}</p>}{row.sourceText && <p className="meal-source-original">{row.sourceText}</p>}</div>)}</details>}
   </section>;
 }
 

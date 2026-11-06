@@ -36,17 +36,17 @@ test('explicit intakeLineId groups a known actual, while stale or mismatching an
  const unmatched=groupMealRecipeRows(meal,[{id:'planned-unrecognized',itemId:'banana',name:"Banana",origin:'reported'}],{planId:'recipe-view'});
  assert.equal(unmatched[0].kind,'food','an unrecognized stable anchor is never reassigned by SKU');
 });
-test('manual reports group only when every matching planned portion belongs to the same unique recipe',()=>{
+test('manual reports without stable recipe evidence stay loose even when a SKU appears only inside one planned recipe',()=>{
  const meal=planned(),report={id:'manual-yogurt',itemId:'yogurt',name:"Yogurt",origin:'reported'};
  assert.equal(groupMealRecipeRows(meal,[report])[0].kind,'food','the same SKU in two recipes or a loose portion is ambiguous');
  meal.plannedItems=meal.plannedItems.filter(line=>['yogurt-b','banana-b'].includes(line.id));
  meal.plannedItems.push(food('second-yogurt-b','yogurt',"Yogurt"));meal.recipeGroups[0].lineIds.push('second-yogurt-b');
- const sections=groupMealRecipeRows(meal,[report]);assert.equal(sections[0].id,'brownie');assert.deepEqual(sections[0].lineIds,['yogurt-b','second-yogurt-b']);
+ const sections=groupMealRecipeRows(meal,[report]);assert.equal(sections[0].kind,'food');assert.deepEqual(sections[0].lineIds,[]);
 });
-test('external foods with no item ID match normalized names only when unambiguous, and invalid overlap never duplicates rows',()=>{
+test('external reports never inherit a recipe from a coincidental normalized name and invalid overlap never duplicates rows',()=>{
  const meal={id:'snack',plannedItems:[food('cocoa',null,"  Unsweetened cocoa powder  "),food('milk',null,"Milk")],recipeGroups:[{id:'a',name:"Brownies",lineIds:['cocoa','milk']},{id:'b',name:"Basque cheesecake",lineIds:['milk']}],actualEntries:[]};
  const rows=[{id:'actual-cocoa',itemId:null,name:"Unsweetened cocoa powder",origin:'reported'},{id:'actual-milk',itemId:null,name:"Milk",origin:'reported'}],sections=groupMealRecipeRows(meal,rows);
- assert.equal(sections[0].id,'a');assert.equal(sections[1].kind,'food');assert.equal(sections.flatMap(section=>section.rows).length,2);
+ assert(sections.every(section=>section.kind==='food'));assert.equal(sections.flatMap(section=>section.rows).length,2);
 });
 test('missing recipe metadata is a lossless flat view, with unknown quantity and zero values untouched',()=>{
  const meal=planned();delete meal.recipeGroups;const rows=[{...food('unknown','yogurt',"Yogurt"),quantity:null,origin:'reported'},{...food('zero','banana',"Banana"),quantity:0,origin:'planned'}],before=structuredClone(rows);

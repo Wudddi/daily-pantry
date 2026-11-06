@@ -16,6 +16,10 @@ This log records application changes. Private inventory, health records and audi
 - Added preview-and-apply food-plan sync. Supported completed meals align to existing actual food, amounts and frozen nutrition; partial meals retain unreported planned food. Unreported meals, actual history, personal checks, supplements, stock and prior accounting remain unchanged.
 - Sync previews retain reliable recipe links and warn before removing ambiguous groups. Unsupported meals are left unchanged while independent supported changes can proceed. A pending intake draft requires review, and revision/fingerprint checks plus stable retries prevent stale or duplicate updates.
 - Removed the redundant daily-nutrition comparison panel from the checklist. Planned-food labels, checked and unchecked plan totals, and explicit plan sync remain; nutrition calculations and inventory accounting are unchanged.
+- Added actual-recipe groups tied to exact reported entry IDs, independent of planned recipes. Two dishes can share an ingredient without moving that ingredient into the wrong dish; unanchored reports stay separate instead of inheriting a recipe from a matching food name or SKU.
+- Actual recipes retain their own portion labels and collapsed ingredient lists. Metadata-only grouping preserves original intake, frozen nutrition, personal checks, supplements and stock accounting; plan sync carries proven actual membership into the corresponding planned rows.
+- Added saved meal arrangement for individual foods and whole recipes, including checked reminders and already reported food. Arrangement preserves the original food rows, quantities, reports, sources, nutrition snapshots and stock accounting, and keeps pending intake drafts unsubmitted.
+- Arranged meal views place each original nutrition contribution exactly once. Proven actual links follow a moved planned row; unrelated reports never move merely because they share a product. Split recipe fragments do not claim the whole recipe's portion, and personal checks keep their original source identities.
 
 ## 2026-11-02
 

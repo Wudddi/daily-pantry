@@ -77,3 +77,49 @@ test('MCP rejects unauthenticated sync and unknown preview input without invento
   assert.equal(invalid.isError,true);
   assert.deepEqual(store.current(),initial);assert.deepEqual(store.mutations(),[]);
 });
+
+test('MCP can organize existing actual food into half recipes without reporting intake or settling stock',async()=>{
+  const initial=fixture();store.reset(initial);
+  const before=initial.plans.find(plan=>plan.id===ID),meal=before.meals.find(meal=>meal.id==='breakfast');
+  const listing=await rpc('tools/list'),tool=listing.tools.find(tool=>tool.name==='set_actual_recipe_groups');
+  assert.ok(tool);assert.equal(tool.annotations.idempotentHint,true);
+  const groups=[{id:'demo-reported-half',name:'DEMO half cereal recipe',portion:0.5,actualEntryIds:[meal.actualEntries[0].id]}];
+  const command={planId:ID,mealId:meal.id,groups,expectedRevision:initial.revision,operationId:'demo-recipe-metadata-rpc-once'};
+  const response=await call(tool.name,command);
+  assert.equal(response.isError,false);assert.equal(response.structuredContent.inventoryEffect,'none');
+  const saved=store.current(),after=saved.plans.find(plan=>plan.id===ID),changed=after.meals.find(entry=>entry.id===meal.id);
+  assert.deepEqual(changed.actualRecipeGroups,groups);
+  for(const key of ['actualEntries','reportHistory','state','actualTime','completionReportedAt','plannedItems','recipeGroups'])assert.deepEqual(changed[key],meal[key],key);
+  for(const key of ['supplementDoses','accountedDebits','items','inventoryAccounting','accountingIssues','personalFoodChecks'])assert.deepEqual(after[key],before[key],key);
+  assert.deepEqual(saved.items,initial.items);assert.deepEqual(saved.dailyMenuSettlementPolicy,initial.dailyMenuSettlementPolicy);
+  const context=await call('read_food_plan_edit_context',{planId:ID,mealIds:[meal.id]});
+  assert.equal(context.isError,false);assert.deepEqual(context.structuredContent.meals[0].actualRecipeGroups,groups);
+  const snapshot=structuredClone(saved),retry=await call(tool.name,command);
+  assert.equal(retry.isError,false);assert.deepEqual(store.current(),snapshot);
+});
+
+test('MCP protects actual-recipe organization from unauthorized calls and intake-field injection',async()=>{
+  const initial=fixture();store.reset(initial);
+  const command={planId:ID,mealId:'breakfast',groups:[],expectedRevision:initial.revision,operationId:'demo-recipe-group-denied'};
+  assert.equal((await call('set_actual_recipe_groups',command,false)).isError,true);
+  assert.equal((await call('set_actual_recipe_groups',{...command,actualEntries:[]})).isError,true);
+  assert.deepEqual(store.current(),initial);
+});
+
+test('Chat reads the latest saved web meal arrangement without adopting drafts or creating another serving',async()=>{
+  const initial=fixture();initial.plans[0].intakeDraft={id:'demo-rpc-layout-draft',baseFingerprint:'demo-old',consumed:[],transfers:[],completedMealIds:[]};store.reset(initial);
+  const before=structuredClone(initial),preview=await call('read_food_plan_edit_context',{planId:ID,mealIds:['breakfast']});
+  assert.equal(preview.isError,false);
+  const command={planId:ID,operationId:'demo-web-layout-rpc',expectedRevision:preview.structuredContent.revision,expectedFingerprint:preview.structuredContent.plan.foodLayoutFingerprint,
+    moves:[{sourceMealId:'breakfast',sourceKind:'actual',sourceId:initial.plans[0].meals[0].actualEntries[0].id,targetMealId:'lunch'}]};
+  const written=await call('set_food_layout',command);assert.equal(written.isError,false);assert.equal(written.structuredContent.inventoryEffect,'none');
+  const saved=structuredClone(store.current());assert.deepEqual(saved.plans[0].meals,before.plans[0].meals);assert.deepEqual(saved.items,before.items);
+  assert.deepEqual(saved.plans[0].intakeDraft,before.plans[0].intakeDraft);
+  const context=await call('read_food_plan_edit_context',{planId:ID,mealIds:['lunch']});
+  assert.equal(context.isError,false);assert.equal(context.structuredContent.revision,saved.revision);
+  assert.deepEqual(context.structuredContent.plan.foodLayoutOverrides,saved.plans[0].foodLayoutOverrides);
+  assert.notEqual(context.structuredContent.plan.foodLayoutFingerprint,preview.structuredContent.plan.foodLayoutFingerprint);
+  const draft=await call('read_intake_draft',{planId:ID,mealIds:['lunch']});assert.equal(draft.isError,false);
+  assert.deepEqual(draft.structuredContent.foodLayoutOverrides,saved.plans[0].foodLayoutOverrides);
+  const retry=await call('set_food_layout',command);assert.equal(retry.isError,false);assert.deepEqual(store.current(),saved);
+});
