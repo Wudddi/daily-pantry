@@ -12,6 +12,8 @@ import { buildChecklistAction, canReceiveChecklistFood, groupChecklistRows, next
 import { isPersonalFoodChecked } from '@/lib/personal-food-checklist.mjs';
 import { personalFoodChecklistView } from '@/lib/personal-food-view.mjs';
 import { checklistNutritionBasis } from '@/lib/checklist-nutrition-basis.mjs';
+import { previewFoodPlanSync } from '@/lib/sync-food-plan.mjs';
+import { canonicalLocalDate } from '@/lib/calendar-date.mjs';
 import { groupMealRecipeRows } from '@/lib/meal-recipe-groups-view.mjs';
 import RecipePortionEditor from './recipe-portion-editor';
 import './day-food-checklist.css';
@@ -87,6 +89,7 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
   const [queued, setQueued] = useState<QueueEntry[]>([]), [saving, setSaving] = useState(false), [paused, setPaused] = useState(false);
   const [localError, setLocalError] = useState(''), [notice, setNotice] = useState(''), [editor, setEditor] = useState<Editor | null>(null);
   const [dayTotalsOpen, setDayTotalsOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const [openRecipes,setOpenRecipes]=useState<string[]>([]);
   const [recipeEditor,setRecipeEditor]=useState<{mealId:string;groupId:string}|null>(null);
   const [drag, setDrag] = useState<Drag | null>(null), dragRef = useRef<Drag | null>(null);
@@ -158,9 +161,9 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
     document.addEventListener('keydown', keyboard);
     return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown', keyboard); previous?.focus(); };
   }, [!!editor, dayTotalsOpen]);
-  useEffect(() => { setDayTotalsOpen(false); setEditor(null); setOpenRecipes([]); setRecipeEditor(null); }, [plan.id, plan.date]);
+  useEffect(() => { setDayTotalsOpen(false); setSyncOpen(false); setEditor(null); setOpenRecipes([]); setRecipeEditor(null); }, [plan.id, plan.date]);
   useEffect(() => {
-    if (!active) { setDayTotalsOpen(false); setEditor(null); setRecipeEditor(null); cancelLongPress(); cancelDrag(); }
+    if (!active) { setDayTotalsOpen(false); setSyncOpen(false); setEditor(null); setRecipeEditor(null); cancelLongPress(); cancelDrag(); }
   }, [active]);
 
   function syncQueue() { if (mountedRef.current) setQueued([...queueRef.current]); }
@@ -297,9 +300,10 @@ export default function DayFoodChecklist({ plan, items, revision, busy, error = 
 
   return <section className="food-checklist" data-checklist-plan={plan.id} aria-label={uiText("Daily food checklist")}>
     <div className="food-checklist-toolbar"><p>{uiText("Personal checks · inventory unchanged")}</p><span role="status">{saving ? <><Loader2 size={12} className="spin"/>{uiText("Saving")}{queued.length > 1 ? " · " + queued.length + uiText(" items") : ''}</> : notice}</span></div>
-    <p className="food-checklist-plan-basis">{uiText("Planned food checklist · excludes supplements")}</p>
+    <div className="food-checklist-plan-tools"><p className="food-checklist-plan-basis">{uiText("Planned food checklist · excludes supplements")}</p><button type="button" className="food-plan-sync-trigger" aria-haspopup="dialog" aria-expanded={syncOpen} disabled={paused || busy || saving || queued.length > 0} onClick={() => { cancelLongPress(); cancelDrag(); setSyncOpen(true); }}><ArrowRightLeft size={14}/>{plan.date === canonicalLocalDate() ? uiText("Sync today's plan") : uiText("Sync this day's plan")}</button></div>
     <div className="food-progress-strip" aria-label={uiText("Personal checklist progress")}><span>{uiText("Checked plan: ")}<strong>{total(view.totals.checked, 'kcal')}</strong>{uiText(" kcal")}</span><span>{uiText("Unchecked plan: ")}<strong>{total(view.totals.unchecked, 'kcal')}</strong>{uiText(" kcal")}</span><button type="button" className="food-day-trigger" aria-haspopup="dialog" aria-expanded={dayTotalsOpen} onClick={() => setDayTotalsOpen(value => !value)}>{uiText("Daily ingredients")}<ChevronDown size={12}/></button></div>
     <ChecklistNutritionBasis plan={plan} items={items} headerTotals={headerTotals}/>
+    {syncOpen && <FoodPlanSyncDialog plan={plan} items={items} revision={revision} busy={busy || saving || queued.length > 0} mutate={mutate} onClose={() => setSyncOpen(false)} onReviewDraft={() => { setSyncOpen(false); onOpenAdvanced?.(); }}/>}
     {!!plan.intakeDraft && <div className="food-checklist-warning" role="status"><span>{uiText("An unsubmitted intake draft is saved. Personal checks are unaffected; review it before redistributing food.")}</span><button type="button" onClick={onOpenAdvanced}>{uiText("Review intake draft")}</button></div>}
     {(error || localError) && <div className="food-checklist-warning" role="alert"><span>{error || localError}</span>{paused ? <><button type="button" onClick={() => void retry()}>{uiText("Retry same action")}</button><button type="button" onClick={() => void reloadLatest()}>{uiText("Load latest and cancel pending action")}</button></> : <button type="button" onClick={() => void refresh()}>{uiText("Refresh and review")}</button>}</div>}
     {plan.inventoryAccounting === 'pending_reconciliation' && <div className="food-checklist-warning" role="status">{uiText("Intake records are saved; some ingredient accounting needs review.")}<button type="button" onClick={onOpenAdvanced}>{uiText("View details")}</button></div>}
@@ -381,8 +385,7 @@ export function ChecklistNutritionBasis({ plan, items, headerTotals }: { plan:Di
   const currentTotals = headerTotals ?? basis.totalTotals;
   const needsComparison = (totals:readonly BasisTotal[]) => totals.some(total => total.value === null || !Number.isFinite(total.value) || total.partial || total.supplementPartial || Math.abs(total.value) > .000001);
   if (basis.headerComparison.canReconcile && !needsComparison(basis.foodDelta) && !needsComparison(basis.supplementTotals)) return null;
-  return <aside className="food-nutrition-basis" aria-label={uiText("Daily nutrition comparison")}>
-    <div className="food-nutrition-basis-heading"><strong>{uiText("Why daily nutrition differs")}</strong><p>{uiText("Checks below follow planned food only. The daily summary uses reported intake plus the remaining menu and counted supplements.")}</p></div>
+  return <details className="food-nutrition-basis" aria-label={uiText("Daily nutrition comparison")}><summary className="food-nutrition-basis-heading"><strong>{uiText("Why daily nutrition differs")}</strong><ChevronDown size={14}/></summary><p className="food-nutrition-basis-description">{uiText("Checks below follow planned food only. The daily summary uses reported intake plus the remaining menu and counted supplements.")}</p>
     <dl className="food-nutrition-basis-grid">
       <div><dt>{uiText("Planned food")}</dt><dd><BasisCalories total={calorie(basis.plannedFoodTotals)}/></dd></div>
       <div><dt>{uiText("Reported food adjustment")}</dt><dd><BasisCalories total={calorie(basis.foodDelta)} signed/></dd></div>
@@ -395,5 +398,64 @@ export function ChecklistNutritionBasis({ plan, items, headerTotals }: { plan:Di
     })}</ul>}
     {!basis.headerComparison.canReconcile && <p className="food-nutrition-basis-note" role="status">{basis.headerComparison.historyBasis ? uiText("The daily summary includes matching historical nutrition evidence. Review its sources; these figures are not a complete equation.") : uiText("Some nutrition evidence is incomplete or differs from this comparison. Known amounts are shown; unknown differences are not zero.")}</p>}
     <p className="food-nutrition-basis-note">{uiText("Current nutrition follows reported food for completed meals and retains the unreported plan for partial meals. Checked and unchecked calories are plan reminders, not intake or food left to eat.")}</p>
-  </aside>;
+  </details>;
+}
+
+
+type SyncDialogProps = { plan:DietPlan; items:readonly FoodItem[]; revision:number; busy:boolean;
+  mutate:(action:string,payload:Record<string,unknown>,message:string)=>Promise<boolean>;
+  onClose:()=>void; onReviewDraft:()=>void };
+
+/** A user-requested preview; nothing is written until Apply sync is pressed. */
+export function FoodPlanSyncDialog({plan,items,revision,busy,mutate,onClose,onReviewDraft}:SyncDialogProps) {
+  const readPreview = () => { try { return { value:previewFoodPlanSync(plan,items), error:'' }; } catch (cause) { return { value:null, error:cause instanceof Error ? uiText(cause.message) : uiText("Unable to preview plan sync. Refresh and review the records.") }; } };
+  const [initial] = useState(readPreview), [openingRevision] = useState(revision);
+  const current = readPreview(), preview = initial.value;
+  const [writing,setWriting] = useState(false), [unknown,setUnknown] = useState(false), [localError,setLocalError] = useState('');
+  const request = useRef<Record<string,unknown>|null>(null), lock = useRef(false), box = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose), lockedRef = useRef(false); closeRef.current = onClose; lockedRef.current = busy || writing;
+  const heading = useId(), description = useId();
+  const stale = openingRevision !== revision || current.value?.fingerprint !== preview?.fingerprint;
+  const changed = preview?.meals.filter(meal => meal.changed) ?? [], unchanged = preview?.meals.filter(meal => !meal.changed) ?? [];
+  const pendingDraft = preview?.hasIntakeDraft ?? !!plan.intakeDraft;
+  const hasUnresolvedMeals = preview?.issues.some(issue => issue.severity === 'skip' || issue.severity === 'error') ?? false;
+  const canApply = !!preview?.canApply && !preview.noChange && !busy && !writing && !stale && !unknown;
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const previous = document.activeElement as HTMLElement|null, overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden'; box.current?.focus();
+    function keyboard(event:KeyboardEvent) {
+      if (event.key === 'Escape' && !lockedRef.current) closeRef.current();
+      if (event.key !== 'Tab') return;
+      const controls = box.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href]');
+      if (!controls?.length) return; const first = controls[0], last = controls[controls.length-1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === box.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    document.addEventListener('keydown',keyboard);
+    return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown',keyboard); previous?.focus(); };
+  },[]);
+  async function apply(retry=false) {
+    if (lock.current || busy || !retry && !canApply || retry && !request.current || !preview) return;
+    if (!request.current) request.current = { planId:plan.id,expectedRevision:openingRevision,expectedFingerprint:preview.fingerprint,operationId:crypto.randomUUID() };
+    lock.current = true; setWriting(true); setLocalError('');
+    try {
+      const ok = await mutate('sync_food_plan',request.current,uiText("Reviewed plan changes saved; inventory unchanged"));
+      if (!ok) throw new Error(uiText("Sync result is unconfirmed. Refresh to verify, or retry the same operation."));
+      setUnknown(false); onClose();
+    } catch (cause) { setUnknown(true); setLocalError(cause instanceof Error ? uiText(cause.message) : uiText("Sync result is unconfirmed. Your records are retained.")); }
+    finally { lock.current = false; setWriting(false); }
+  }
+  return <div className="food-sync-overlay" onPointerDown={event => { if (event.target === event.currentTarget && !busy && !writing) onClose(); }}><div className="food-sync-dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby={heading} aria-describedby={description} tabIndex={-1}>
+    <header><div><span>{plan.date}</span><h2 id={heading}>{uiText("Sync plan to reported food")}</h2></div><button type="button" aria-label={uiText("Close plan sync preview")} disabled={busy || writing} onClick={onClose}><X size={20}/></button></header>
+    <p className="food-sync-intro" id={description}>{uiText("Review the changes below. Only the plan is updated; reported intake, inventory and supplement records stay unchanged.")}</p>
+    {pendingDraft && <div className="food-sync-warning" role="alert"><strong>{uiText("Review the saved intake draft first")}</strong><p>{uiText("A pending intake draft blocks plan sync. Review and submit or explicitly discard that draft before trying again; it will not be cleared automatically.")}</p><button type="button" className="button secondary small" disabled={busy || writing} onClick={onReviewDraft}>{uiText("Review intake draft")}</button></div>}
+    {preview?.issues.filter(issue => issue.code !== 'INTAKE_DRAFT_PENDING').map((issue,index) => <div className="food-sync-warning" role={issue.severity === 'error' ? 'alert' : 'status'} key={issue.code+index}><p>{issue.severity === 'skip' && <strong>{uiText("Skipped meal · ")}</strong>}{issue.mealId && <strong>{mealName(plan.meals.find(meal => meal.id === issue.mealId))}{": "}</strong>}{uiText(issue.message)}</p>{issue.code === 'SYNC_RECIPE_GROUPS_REMOVED' && <small>{uiText("Ingredients are kept as individual plan lines; only unproven recipe grouping is removed.")}</small>}</div>)}
+    {(initial.error || localError) && <p className="food-sync-warning" role="alert">{localError || initial.error}</p>}
+    {stale && !unknown && <p className="food-sync-warning" role="alert">{uiText("The menu or intake records changed. Close and reopen this preview before syncing.")}</p>}
+    {preview?.noChange && !pendingDraft && <p className="food-sync-empty">{hasUnresolvedMeals ? uiText("No safe plan changes can be applied. Review the messages above; the affected meals remain unchanged.") : uiText("The plan already matches the supported intake reports. Nothing needs syncing.")}</p>}
+    {changed.length > 0 && <div className="food-sync-meals">{changed.map(meal => <section key={meal.mealId} aria-label={(slots[meal.slot] ?? meal.title) + uiText(" sync changes")}><div className="food-sync-meal-heading"><strong>{slots[meal.slot] ?? meal.title}</strong><span>{meal.state === 'completed' ? uiText("Completed meal · align to report") : uiText("Partial report · retain unreported plan")}</span></div><p className="food-sync-calories">{uiText("Planned food: ")}{total(meal.beforeTotals,'kcal')} kcal → {total(meal.afterTotals,'kcal')} kcal</p><ul>{meal.changes.map((change,index) => <li key={change.lineId+index}><span>{change.name}</span><strong>{change.kind === 'add' ? uiText("Not in plan") : amount(change.beforeQuantity,change.beforeUnit)} → {change.kind === 'remove' ? uiText("Remove from plan") : amount(change.afterQuantity,change.afterUnit)}</strong></li>)}</ul></section>)}</div>}
+    {unchanged.length > 0 && <p className="food-sync-unchanged">{uiText("Unchanged meals: ")}{unchanged.map(meal => slots[meal.slot] ?? meal.title).join(' / ')}</p>}
+    <footer><p>{uiText("Only updates the plan. Checking food still remains a personal reminder.")}</p><div><button type="button" className="button secondary" disabled={busy || writing} onClick={onClose}>{unknown ? uiText("Close and review") : uiText("Cancel")}</button>{unknown ? <button type="button" className="button primary" disabled={busy || writing} onClick={() => void apply(true)}>{writing && <Loader2 size={14} className="spin"/>}{uiText("Retry same action")}</button> : <button type="button" className="button primary" disabled={!canApply} onClick={() => void apply()}>{writing ? <Loader2 size={14} className="spin"/> : <Check size={14}/>} {uiText("Apply sync")}</button>}</div></footer>
+  </div></div>;
 }

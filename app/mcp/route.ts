@@ -2,7 +2,9 @@ import { actorFrom, readInventory, mutateInventory, boundedJson } from '@/lib/in
 import { readPlanningInventory } from '@/lib/inventory-planning-read.mjs';
 import { readHealth, mutateHealth } from '@/lib/health-store';
 import { healthContext, readHealthRecords } from '@/lib/health.mjs';
-import { readDietRecords, readDailyFoodSummary, readIntakeDraft } from '@/lib/diet.mjs';
+import { readDietRecords, readDailyFoodSummary, readIntakeDraft, materializeDietPlanForEdit } from '@/lib/diet.mjs';
+import { previewFoodPlanSync } from '@/lib/sync-food-plan.mjs';
+import type { FoodItem } from '@/lib/inventory-types';
 import { mealPlanningHealthContext, mealPlanningDietContext } from '@/lib/meal-planning-context.mjs';
 import { dietToolActions, dietTools } from '@/lib/diet-mcp';
 import { readFoodPlanEditContext, foodPlanNutritionSummary } from '@/lib/diet-edit-read.mjs';
@@ -226,6 +228,12 @@ export async function POST(request: Request) {
       } else if (toolName === 'read_intake_draft') {
         const { state } = await readInventory(actor);
         result = readIntakeDraft(state, args ?? {});
+      } else if (toolName === 'read_food_plan_sync_preview') {
+        const { state } = await readInventory(actor);
+        const input = (args ?? {}) as { planId?: string };
+        if (Object.keys(input).some(key => key !== 'planId') || typeof input.planId !== 'string' || !input.planId.trim() || input.planId.length > 100) throw Object.assign(new Error("Provide a valid canonical planId."), { status: 400 });
+        const plan = materializeDietPlanForEdit(state, input.planId);
+        result = { available: true, revision: state.revision, planId: plan.id, inventoryEffect: 'none', ...previewFoodPlanSync(plan, state.items as unknown as FoodItem[]) };
       } else if (toolName === 'read_food_plan_edit_context') {
         const { state } = await readInventory(actor);
         result = { available: true, ...readFoodPlanEditContext(state, args ?? {}) };
@@ -252,7 +260,7 @@ export async function POST(request: Request) {
               : toolName === 'discard_intake_draft' ? "Discarded the pending draft only. Actuals and stock are unchanged."
                 : "Explicitly submitted draft actual amounts and meal transfers. Settled only actual differences; check accountingIssues for unresolved stock." };
         }
-        if (planId && ['patch_food_plan', 'confirm_daily_food_plan', 'save_food_plan_draft', 'revise_food_plan', 'record_meal_intake', 'submit_intake_draft', 'scale_recipe_group', 'move_recipe_group', 'add_food_to_meal'].includes(toolName)) {
+        if (planId && ['patch_food_plan', 'confirm_daily_food_plan', 'save_food_plan_draft', 'revise_food_plan', 'record_meal_intake', 'submit_intake_draft', 'scale_recipe_group', 'move_recipe_group', 'add_food_to_meal', 'sync_food_plan'].includes(toolName)) {
           let nutritionSummary;
           try { nutritionSummary = foodPlanNutritionSummary(state, planId,
             toolName === 'save_food_plan_draft' || toolName === 'patch_food_plan' && command?.mode === 'draft' ? 'draft' : 'active'); }
@@ -260,12 +268,13 @@ export async function POST(request: Request) {
           let dailyFoodSummary;
           try { dailyFoodSummary = readDailyFoodSummary(state, { planId }); }
           catch { dailyFoodSummary = { available: false, note: "Menu changes saved. Daily food detail was not returned; read one date with read_diet_records instead of saving or settling again." }; }
-          result = { ...result, nutritionSummary, dailyFoodSummary, ...(['save_food_plan_draft', 'confirm_daily_food_plan', 'patch_food_plan', 'revise_food_plan', 'scale_recipe_group', 'move_recipe_group', 'add_food_to_meal'].includes(toolName) ? { inventoryEffect: 'none' } : {}),
+          result = { ...result, nutritionSummary, dailyFoodSummary, ...(['save_food_plan_draft', 'confirm_daily_food_plan', 'patch_food_plan', 'revise_food_plan', 'scale_recipe_group', 'move_recipe_group', 'add_food_to_meal', 'sync_food_plan'].includes(toolName) ? { inventoryEffect: 'none' } : {}),
             ...(toolName === 'patch_food_plan' ? { mode: command?.mode, changedMealIds: Array.isArray(command?.mealPatches) ? command.mealPatches.map(entry => entry.id) : [],
               changedSupplementIds: Array.isArray(command?.supplementPatches) ? command.supplementPatches.map(entry => entry.id) : [],
               note: command?.mode === 'draft' ? "Merged only specified draft fields with no stock deduction. Omitted meals, lines and supplements are retained. nutritionSummary is a menu preview, not actual-intake confirmation."
                 : "Updated only specified menu fields with zero stock change. Omitted meals, lines, supplements and actual records are retained. Retry did not deduct again." } : {}) };
         }
+        if (toolName === 'sync_food_plan') result = { ...result, inventoryEffect: 'none', note: "Synced supported planned food to the existing reported-intake basis. Actual records, personal checkmarks, supplements, stock and prior accounting remain unchanged. No food was reported or deducted again." };
         if (toolName === 'patch_food_plan' && command?.mealPatches?.some(meal => meal.itemPatches?.some(entry => entry.id.startsWith('actual-nutrition:')))) result = { ...result, inventoryEffect: 'none', correctedActualEntryIds: command.mealPatches.flatMap(meal => (meal.itemPatches ?? []).map(entry => entry.id.slice('actual-nutrition:'.length))), note: "Legacy compatibility corrected only actual food nutrition and retained previous snapshots/evidence. Actual amounts/times/source reports, menus, other meals/supplements and stock accounting are unchanged." };
       } else if (toolName === healthReadTool.name) {
         const { state } = await readHealth(actor);

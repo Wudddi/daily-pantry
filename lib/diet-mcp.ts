@@ -92,7 +92,7 @@ const historyRecord = { type: 'object', additionalProperties: false, properties:
 }, required: ['id'] };
 
 export const dietToolActions: Record<string, string> = {
-  scale_recipe_group: 'scale_recipe_group', move_recipe_group: 'move_recipe_group', add_food_to_meal: 'add_food_to_meal',
+  scale_recipe_group: 'scale_recipe_group', move_recipe_group: 'move_recipe_group', add_food_to_meal: 'add_food_to_meal', sync_food_plan: 'sync_food_plan',
   save_intake_draft: 'save_intake_draft', submit_intake_draft: 'submit_intake_draft', discard_intake_draft: 'discard_intake_draft',
   save_food_plan_draft: 'save_meal_plan_draft', confirm_daily_food_plan: 'commit_meal_plan',
   patch_food_plan: 'patch_meal_plan',
@@ -105,6 +105,13 @@ export const dietToolActions: Record<string, string> = {
   import_diet_history: 'import_diet_history',
 };
 export const dietTools = [
+  { name: 'read_food_plan_sync_preview', title: "Preview syncing the food plan to reported intake",
+    description: "Read a plan-only comparison for an existing canonical planId. Completed meals align to their reported food; partial meals retain unreported planned food using the shared nutrition rules. Unreported meals, supplements, stock, actual facts and personal checkmarks remain unchanged. Review changed and skipped meals and recipe-group warnings before applying sync_food_plan. A pending intake draft is preserved and must be reviewed separately. Return current revision and fingerprint for an explicit sync request; this read never saves or settles anything.",
+    inputSchema: { type: 'object', additionalProperties: false, properties: { planId: identifier }, required: ['planId'] },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+  { name: 'sync_food_plan', title: "Sync the current food plan to reported intake",
+    description: "Apply the reviewed read_food_plan_sync_preview with its current revision and fingerprint after an explicit user request. Update planned food only: completed meals follow existing actual entries, partial meals retain their unreported plan, and unsupported meals are left unchanged with reasons. Preserve actual IDs, nutrition evidence, source reports, personal checkmarks, supplements, stock and frozen accounting. Never record intake or settle stock. Do not discard a pending intake draft. Reuse the same operationId on retry; stale previews require a new read and review. This does not replace an entire day from a chat summary.",
+    inputSchema: { type: 'object', additionalProperties: false, properties: { ...revision, planId: identifier, expectedFingerprint: { type: 'string', minLength: 1, maxLength: 160 } }, required: ['operationId', 'expectedRevision', 'planId', 'expectedFingerprint'] }, annotations: mutationAnnotation },
   { name: 'scale_recipe_group', title: "Adjust an entire recipe by absolute servings",
     description: "Change planned ingredient amounts together using one stored serving baseline. Changing 0.5 back to 1 restores original proportions instead of halving an already halved amount. First read groupId, portion and editFingerprint with read_food_plan_edit_context; retain planId/mealId. This edits menu quantities and planned nutrition only, with no actual intake or stock deduction. Preserve actuals and never reduce below amounts already eaten. Review pending intake drafts. This changes daily planned totals; use move_recipe_group to allocate only uneaten food.",
     inputSchema: { type: 'object', additionalProperties: false, properties: { ...revision, planId: identifier, mealId: identifier, groupId: identifier, targetPortion: { type: 'number', minimum: 0.01, maximum: 100 }, expectedFingerprint: { type: 'string', maxLength: 160 } }, required: ['operationId', 'expectedRevision', 'planId', 'mealId', 'groupId', 'targetPortion'] }, annotations: mutationAnnotation },

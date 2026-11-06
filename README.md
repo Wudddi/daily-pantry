@@ -12,6 +12,7 @@ This is a sanitized copy of an actively used personal project. **All bundled foo
 - Move a share of a recipe remaining uneaten to another meal without changing daily ingredient totals.
 - Search inventory and add food directly to a meal while retaining saved intake drafts.
 - Compact personal checklists and independent actual-intake drafts.
+- Preview and sync supported meal plans to existing reported food, preserving actual records, inventory, supplements and unreported portions.
 - Independent supplement routines and actual dose records.
 - Stable IDs, revision checks, conditional writes and differential accounting to prevent duplicate consumption.
 - Per-item food shortage handling, correction history and preserved unknown values.

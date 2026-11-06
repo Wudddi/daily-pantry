@@ -24,7 +24,7 @@ export type ActualEntryInput = { id: string; itemId: string | null; name?: strin
 export type ActualNutritionCorrection = { entryId: string; nutrition?: FoodNutrition; gramsPerUnit?: number | null; fromPlannedLineId?: string; sourceText: string };
 export type ActualNutritionCorrectionHistory = { at: string; sourceText: string; previous: NutritionSnapshot };
 export type ActualEntry = ActualEntryInput & { intakeLineId?: string; nutritionCorrectionHistory?: ActualNutritionCorrectionHistory[]; name: string; unit: string; reportedAt: string; quantitySource: 'reported' | 'confirmed_plan_portion' | 'unknown'; nutritionSnapshot: NutritionSnapshot; correctionHistory: Omit<ActualEntry, 'correctionHistory'>[] };
-export type PlannedFood = Omit<PlannedFoodInput, 'unit' | 'sourceText'> & { unit: Unit; sourceText: string; nutritionSnapshot: NutritionSnapshot };
+export type PlannedFood = Omit<PlannedFoodInput, 'unit' | 'sourceText'> & { unit: Unit; sourceText: string; nutritionSnapshot: NutritionSnapshot; /** Server-owned links; never accepted from plan input. */ syncActualEntryIds?: string[] };
 export type AccountingLine = { itemId: string; name: string; quantity: number; unit: string; unknownBalance: boolean; baselineToken: string; shortfallQuantity?: number };
 export type AccountingWarning = { code: 'STOCK_SHORTFALL_RECORDED'; itemId: string; quantity: number; unit: string; message: string };
 export type AccountingAdjustment = { at: string; itemId: string; unit: string; code: 'STOCK_SHORTFALL_RECORDED' | 'STOCK_SHORTFALL_REDUCED'; basis: 'reported_actual' | 'automatic_menu'; targetBefore: number; targetAfter: number; stockBefore: number | null; stockAfter: number | null; shortfallBefore: number; shortfallAfter: number; inventoryDelta: number };
@@ -44,6 +44,7 @@ export type PersonalFoodCheckInput = { planId: string; mealId: string; checked: 
   ({ lineIds: string[]; wholeMeal?: never } | { wholeMeal: true; lineIds?: never });
 export type DietAction =
   | RecipeGroupAction
+  | { action: 'sync_food_plan'; planId: string; expectedFingerprint: string }
   | { action: 'add_food_to_meal'; planId: string; mealId: string; itemId: string; quantity: number; expectedDraftVersion?: string | null }
   | ({ action: 'set_food_personal_check' } & PersonalFoodCheckInput)
   | { action: 'settle_daily_menu'; planId: string; effectiveDate: string; policyStartDate: string; confirmed: true }
